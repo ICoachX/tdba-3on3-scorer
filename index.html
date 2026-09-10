@@ -203,7 +203,8 @@ $('#coach').addEventListener('input', e => ls('coach', e.target.value));
 // ---------- gate
 KEY = ls('key');
 function showGate(msg) { $('#gate').hidden = false; if (msg) toast(msg, true); setTimeout(() => $('#keyIn').focus(), 50); }
-$('#keyGo').onclick = () => { KEY = $('#keyIn').value.trim().toLowerCase(); ls('key', KEY); $('#gate').hidden = true; load(true); };
+let checking = false;
+$('#keyGo').onclick = async () => { if (checking) return; KEY = $('#keyIn').value.trim().toLowerCase(); if (!KEY) return; ls('key', KEY); checking = true; $('#keyGo').textContent = 'CHECKING…'; await load(true); checking = false; $('#keyGo').textContent = "LET'S GO"; };
 $('#keyIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#keyGo').click(); });
 
 // ---------- tabs
@@ -362,8 +363,8 @@ async function load(force) {
   if (!force && Date.now() - lastSync < 8000) { render(); return; }
   try {
     const r = await fetch(API + '?key=' + encodeURIComponent(KEY) + '&t=' + Date.now(), {cache:'no-store'}); const d = await r.json();
-    if (d && d.error === 'auth') { KEY = ''; ls('key',''); showGate('Wrong passphrase'); return; }
-    if (d && d.ok) { DATA = d; lastSync = Date.now(); if (!group) { const g = ls('group'); if (DATA.groups.includes(g)) setGroup(g); } renderGroupChips(); }
+    if (d && d.error === 'auth') { KEY = ''; ls('key',''); $('#keyIn').value = ''; showGate('Wrong passphrase'); return; }
+    if (d && d.ok) { DATA = d; lastSync = Date.now(); $('#gate').hidden = true; if (!group) { const g = ls('group'); if (DATA.groups.includes(g)) setGroup(g); } renderGroupChips(); }
   } catch (e) { toast('Offline — showing last numbers', true); }
   render();
 }
