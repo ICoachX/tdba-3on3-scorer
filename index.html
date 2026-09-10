@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="theme-color" content="#1B1E53">
+<meta name="robots" content="noindex">
 <title>TDBA 3on3 Scorer</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%231B1E53'/%3E%3Ctext x='50' y='66' font-size='44' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3E3%3C/text%3E%3C/svg%3E">
 <style>
-:root{--navy:#1B1E53;--red:#D92027;--bg:#f4f5f8;--card:#fff;--ink:#14162e;--mute:#6b6f85;--line:#dfe2ea;--ok:#1f8a4c}
+:root{--navy:#1B1E53;--red:#D92027;--bg:#f4f5f8;--card:#fff;--ink:#14162e;--mute:#6b6f85;--line:#dfe2ea;--ok:#1f8a4c;--warn:#b45309}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:17px;-webkit-text-size-adjust:100%}
 header{background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
@@ -16,18 +17,24 @@ header small{opacity:.8;font-size:12px}
 nav{display:flex;background:#fff;border-bottom:2px solid var(--line);position:sticky;top:48px;z-index:5}
 nav button{flex:1;border:0;background:none;padding:14px 4px;font-size:15px;font-weight:700;color:var(--mute);border-bottom:4px solid transparent}
 nav button.on{color:var(--navy);border-bottom-color:var(--red)}
-main{padding:14px 14px 90px;max-width:720px;margin:0 auto}
+main{padding:14px 14px 90px;max-width:760px;margin:0 auto}
 .card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .lbl{font-size:13px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.6px;margin:0 0 8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .chip{border:2px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;font-weight:700;font-size:15px;color:var(--ink)}
 .chip.on{border-color:var(--navy);background:var(--navy);color:#fff}
+.chip.big{font-size:20px;padding:12px 22px}
 .row{display:flex;gap:8px;align-items:stretch}
-input[type=text],input[type=number]{width:100%;font-size:22px;padding:12px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);min-width:0}
+input[type=text],input[type=number],input[type=password]{width:100%;font-size:22px;padding:12px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);min-width:0}
 input:focus{outline:none;border-color:var(--navy)}
 .mic{flex:0 0 58px;border:2px solid var(--line);border-radius:12px;background:#fff;font-size:26px}
 .mic.live{background:var(--red);border-color:var(--red);color:#fff;animation:pulse 1s infinite}
 @keyframes pulse{50%{opacity:.6}}
+.names{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:6px}
+.pill{border-radius:8px;padding:6px 10px;font-size:14px;font-weight:700;background:#e9f7ee;color:#14532d;border:2px solid transparent}
+.pill.unk{background:#fff4e5;color:var(--warn)}
+.pill.pick{background:#fff;border-color:var(--red);color:var(--red)}
+.pill.pick.on{background:var(--navy);border-color:var(--navy);color:#fff}
 .scores{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
 .scorebox{text-align:center}
 .scorebox .team{font-weight:800;font-size:15px;margin-bottom:6px;min-height:18px}
@@ -40,15 +47,16 @@ input:focus{outline:none;border-color:var(--navy)}
 .btn{display:block;width:100%;border:0;border-radius:14px;padding:18px;font-size:20px;font-weight:800;color:#fff;background:var(--red);box-shadow:0 2px 0 #a0161b}
 .btn:disabled{opacity:.5}
 .btn.navy{background:var(--navy);box-shadow:0 2px 0 #0d0f33}
-.btn.ghost{background:#fff;color:var(--navy);border:2px solid var(--navy);box-shadow:none}
 .saybox{font-size:16px;color:var(--mute);min-height:22px;margin-top:8px;font-style:italic}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:14px 20px;border-radius:12px;font-weight:700;font-size:16px;opacity:0;pointer-events:none;transition:.25s;z-index:20;max-width:92vw;text-align:center}
 .toast.show{opacity:1}
 .toast.bad{background:var(--red)}
-table{width:100%;border-collapse:collapse;font-size:16px}
-th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mute);text-align:left;padding:6px 6px;border-bottom:2px solid var(--line)}
-td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mute);text-align:left;padding:6px 6px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.tot{font-weight:800}
 tr.top td{font-weight:800}
 .rank{display:inline-block;min-width:26px;color:var(--mute)}
 .game{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -58,27 +66,37 @@ tr.top td{font-weight:800}
 .game .w{color:var(--ok)}
 .undo{border:2px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;font-weight:700;color:var(--red)}
 .empty{color:var(--mute);text-align:center;padding:22px 0}
-.champ{background:var(--navy);color:#fff;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px}
-.champ .big{font-size:34px;font-weight:900}
-.champ .sub{opacity:.85;font-size:14px;margin-top:2px}
+.champ{background:var(--navy);color:#fff;border-radius:14px;padding:14px;text-align:center;margin-bottom:14px}
+.champ .big{font-size:28px;font-weight:900}
+.champ .sub{opacity:.85;font-size:13px;margin-top:2px}
 .foot{font-size:12px;color:var(--mute);text-align:center;margin-top:16px}
 .sync{font-size:12px;color:var(--mute);text-align:right;margin-bottom:8px}
+.gtabs{display:flex;gap:8px;margin-bottom:12px}
+.gtabs button{flex:1;border:2px solid var(--line);background:#fff;border-radius:12px;padding:12px;font-size:18px;font-weight:800;color:var(--ink)}
+.gtabs button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+#gate{position:fixed;inset:0;background:var(--navy);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+#gate[hidden]{display:none}
+#gate .box{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:380px;text-align:center}
+#gate h2{margin:0 0 6px;color:var(--navy)}
+#gate p{margin:0 0 14px;color:var(--mute);font-size:15px}
 #print{display:none}
 @media print{
-  body{background:#fff;font-size:12px}
-  header,nav,main,.toast{display:none!important}
+  body{background:#fff;font-size:11px}
+  header,nav,main,.toast,#gate{display:none!important}
   #print{display:block;padding:0 6px}
-  #print h1{font-size:22px;margin:0 0 2px;color:#1B1E53}
-  #print h2{font-size:14px;margin:14px 0 4px;color:#1B1E53;border-bottom:2px solid #1B1E53}
-  #print .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  #print table{font-size:11px}
-  #print td,#print th{padding:3px 4px}
-  #print .champline{font-size:16px;font-weight:800;margin:4px 0 8px}
+  #print h1{font-size:20px;margin:0 0 2px;color:#1B1E53}
+  #print h2{font-size:14px;margin:12px 0 4px;color:#1B1E53;border-bottom:2px solid #1B1E53}
+  #print table{font-size:10.5px}
+  #print td,#print th{padding:2px 4px}
+  #print .champline{font-size:13px;font-weight:800;margin:2px 0 6px}
+  #print .pg{page-break-after:always}
+  #print .pg:last-child{page-break-after:auto}
 }
 </style>
 </head>
 <body>
-<header><div><h1>TDBA 3on3 Scorer</h1><small id="hdate"></small></div><div style="font-size:12px;opacity:.85">Win = +10 bonus</div></header>
+<div id="gate" hidden><div class="box"><h2>TDBA 3on3 Scorer</h2><p>Coaches only. Type the word.</p><input type="password" id="keyIn" placeholder="passphrase" autocomplete="off"><button class="btn navy" id="keyGo" style="margin-top:12px">LET'S GO</button></div></div>
+<header><div><h1>TDBA 3on3 Scorer</h1><small id="hdate"></small></div><div style="font-size:12px;opacity:.85" id="hweek">Win = +10</div></header>
 <nav>
   <button class="on" data-tab="score">SCORE</button>
   <button data-tab="today">TODAY</button>
@@ -89,6 +107,11 @@ tr.top td{font-weight:800}
 
 <section id="tab-score">
   <div class="card">
+    <p class="lbl">Group</p>
+    <div class="chips" id="groupChips"></div>
+  </div>
+
+  <div class="card">
     <p class="lbl">Say the whole game (or type below)</p>
     <button class="btn navy" id="sayAll">🎤 Say it: "White 26 27 18 beat Blue 1 2 6, 10 to 9"</button>
     <div class="saybox" id="heard"></div>
@@ -98,12 +121,14 @@ tr.top td{font-weight:800}
     <p class="lbl">Team A</p>
     <div class="chips" data-team="A"></div>
     <div class="row"><input type="text" id="pA" inputmode="numeric" placeholder="jersey numbers  26 27 18 22" autocomplete="off"><button class="mic" data-mic="pA" title="speak numbers">🎤</button></div>
+    <div class="names" id="nmA"></div>
   </div>
 
   <div class="card">
     <p class="lbl">Team B</p>
     <div class="chips" data-team="B"></div>
     <div class="row"><input type="text" id="pB" inputmode="numeric" placeholder="jersey numbers  1 2 6" autocomplete="off"><button class="mic" data-mic="pB" title="speak numbers">🎤</button></div>
+    <div class="names" id="nmB"></div>
   </div>
 
   <div class="card">
@@ -113,7 +138,7 @@ tr.top td{font-weight:800}
       <div class="vs">vs</div>
       <div class="scorebox"><div class="team" id="nB">Team B</div><input type="number" id="sB" inputmode="numeric" placeholder="0"><div class="pm"><button data-pm="sB:-1">−</button><button data-pm="sB:1">+</button></div></div>
     </div>
-    <div class="preview" id="preview">Pick teams, type jersey numbers, enter the score.</div>
+    <div class="preview" id="preview">Pick the group, teams, jersey numbers, score.</div>
   </div>
 
   <div class="card">
@@ -128,21 +153,21 @@ tr.top td{font-weight:800}
 <section id="tab-today" hidden>
   <div class="sync" id="sync1"></div>
   <div id="champToday"></div>
-  <div class="card"><p class="lbl">Today's leaders</p><div id="todayBoard"></div></div>
   <div class="card"><p class="lbl">Today's games</p><div id="todayGames"></div></div>
 </section>
 
 <section id="tab-season" hidden>
   <div class="sync" id="sync2"></div>
-  <div class="card"><p class="lbl">Season standings (all games)</p><div id="seasonBoard"></div></div>
+  <div class="gtabs" id="seasonTabs"></div>
+  <div class="card"><div class="tblwrap" id="seasonBoard"></div></div>
 </section>
 
 <section id="tab-printtab" hidden>
   <div class="card">
-    <p class="lbl">Print the day sheet</p>
-    <p style="margin:0 0 12px;color:var(--mute)">One page: today's champ, today's leaders, season standings. Same sheet for everyone.</p>
+    <p class="lbl">Print</p>
+    <p style="margin:0 0 12px;color:var(--mute)">One page per group: today's champ, today's leaders, the season board (week by week). Same sheet for everyone.</p>
     <button class="btn navy" id="doPrint">🖨️ PRINT DAY SHEET</button>
-    <p style="margin:14px 0 0;font-size:14px;color:var(--mute)">Numbers wrong? Fix them on the <a id="sheetLink" href="#" target="_blank">Google Sheet</a> — the app reads from it.</p>
+    <p style="margin:14px 0 0;font-size:14px;color:var(--mute)">The <a id="sheetLink" href="#" target="_blank">scores sheet</a> keeps every game and the Board A/B/C tabs. Jersey numbers and groups come from the roster sheet.</p>
   </div>
 </section>
 
@@ -156,25 +181,45 @@ const API = 'https://script.google.com/macros/s/AKfycbw9myq61cJ4tjy3hIl5SobEluPG
 const SHEET = 'https://docs.google.com/spreadsheets/d/1eXSkEoSGP_-Jz1ZE_UC7v4klrSRnpcC7XVFxG810PKE/edit';
 const COLORS = ['White','Red','Blue','Black','Yellow','Green','Orange','Gray','Purple','Pink'];
 const BONUS = 10;
-let DATA = {games:[], points:[], names:{}};
+let DATA = {games:[], points:[], roster:[], groups:['A','B','C'], seasonStart:'2026-08-22'};
 let team = {A:'', B:''};
+let group = '';
+let picks = {A:{}, B:{}};   // jersey -> chosen name when duplicates
+let seasonGroup = '';
 let lastSync = 0;
+let KEY = '';
 
 const $ = s => document.querySelector(s);
+const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k) || ''; localStorage.setItem(k, v); } catch(e){ return ''; } };
 const todayStr = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const weekOf = ds => { const d = new Date(ds+'T12:00:00'), s = new Date(DATA.seasonStart+'T12:00:00'); return Math.max(1, Math.floor((d-s)/(7*86400000))+1); };
+const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 $('#hdate').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
 $('#sheetLink').href = SHEET;
-try { $('#coach').value = localStorage.getItem('coach') || ''; } catch(e){}
-$('#coach').addEventListener('input', e => { try{ localStorage.setItem('coach', e.target.value); }catch(_){} });
+$('#coach').value = ls('coach');
+$('#coach').addEventListener('input', e => ls('coach', e.target.value));
+
+// ---------- gate
+KEY = ls('key');
+function showGate(msg) { $('#gate').hidden = false; if (msg) toast(msg, true); setTimeout(() => $('#keyIn').focus(), 50); }
+$('#keyGo').onclick = () => { KEY = $('#keyIn').value.trim().toLowerCase(); ls('key', KEY); $('#gate').hidden = true; load(true); };
+$('#keyIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#keyGo').click(); });
 
 // ---------- tabs
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
   ['score','today','season','printtab'].forEach(t => $('#tab-'+t).hidden = (t !== b.dataset.tab));
+  if (b.dataset.tab === 'season' && group) seasonGroup = group;
   if (b.dataset.tab !== 'score') load();
 });
 
-// ---------- chips
+// ---------- group + color chips
+function renderGroupChips() {
+  const wrap = $('#groupChips'); wrap.innerHTML = '';
+  DATA.groups.forEach(g => { const el = document.createElement('button'); el.className = 'chip big' + (g === group ? ' on' : ''); el.textContent = 'Group ' + g; el.onclick = () => setGroup(g); wrap.appendChild(el); });
+}
+function setGroup(g) { group = g; ls('group', g); renderGroupChips(); $('#hweek').textContent = 'Group ' + g + ' · Week ' + weekOf(todayStr()); preview(); }
 for (const t of ['A','B']) {
   const wrap = document.querySelector(`.chips[data-team=${t}]`);
   COLORS.forEach(c => { const el = document.createElement('button'); el.className='chip'; el.textContent=c; el.onclick = () => setTeam(t, c); wrap.appendChild(el); });
@@ -189,16 +234,41 @@ function setTeam(t, c) {
 // ---------- inputs
 document.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { const [id,d] = b.dataset.pm.split(':'); const el = $('#'+id); el.value = Math.max(0, (parseInt(el.value)||0) + parseInt(d)); preview(); });
 ['pA','pB','sA','sB'].forEach(id => $('#'+id).addEventListener('input', preview));
+function nums(s) { return [...new Set(String(s||'').replace(/[^0-9\s,]/g,' ').split(/[\s,]+/).filter(Boolean).map(x => String(parseInt(x,10))))]; }
 
-function nums(s) { return String(s||'').replace(/[^0-9\s,]/g,' ').split(/[\s,]+/).filter(Boolean).map(x => String(parseInt(x,10))); }
+function rosterFor(g) { return DATA.roster.filter(r => r.group === g && r.jersey !== ''); }
+function matches(j) { return rosterFor(group).filter(r => r.jersey === j); }
+// resolve a jersey number in the current group -> {jersey, name, status}
+function resolve(t, j) {
+  const m = matches(j);
+  if (!m.length) return {jersey:j, name:'', status:'unk'};
+  if (m.length === 1) return {jersey:j, name:m[0].name, status:'ok'};
+  const chosen = picks[t][j];
+  return {jersey:j, name: chosen || '', status: chosen ? 'ok' : 'pick', options: m.map(x => x.name)};
+}
+function playersOf(t) { return nums($('#p'+t).value).map(j => resolve(t, j)); }
+function renderNames(t) {
+  const box = $('#nm'+t); box.innerHTML = '';
+  if (!group) { box.innerHTML = '<span class="pill unk">Pick a group first</span>'; return; }
+  playersOf(t).forEach(p => {
+    if (p.status === 'pick') {
+      p.options.forEach(n => { const el = document.createElement('button'); el.className = 'pill pick'; el.textContent = '#' + p.jersey + ' ' + n + '?'; el.onclick = () => { picks[t][p.jersey] = n; preview(); }; box.appendChild(el); });
+    } else {
+      const el = document.createElement('span'); el.className = 'pill' + (p.status === 'unk' ? ' unk' : ''); el.textContent = '#' + p.jersey + ' ' + (p.name || 'not on roster'); box.appendChild(el);
+    }
+  });
+}
 
 function preview() {
-  const pa = nums($('#pA').value), pb = nums($('#pB').value);
+  renderNames('A'); renderNames('B');
+  const pa = playersOf('A'), pb = playersOf('B');
   const sa = $('#sA').value === '' ? null : parseInt($('#sA').value), sb = $('#sB').value === '' ? null : parseInt($('#sB').value);
   const A = team.A || 'Team A', B = team.B || 'Team B';
-  const dup = pa.filter(x => pb.includes(x));
+  const dup = pa.filter(x => pb.some(y => y.jersey === x.jersey && (y.name === x.name)));
   let msg = '';
-  if (dup.length) msg = `⚠️ #${dup.join(', #')} is on both teams.`;
+  if (!group) msg = 'Pick the group (A, B or C) first.';
+  else if (dup.length) msg = `⚠️ #${dup.map(d=>d.jersey).join(', #')} is on both teams.`;
+  else if (pa.concat(pb).some(p => p.status === 'pick')) msg = '⚠️ Two kids share a number — tap the right name.';
   else if (sa === null || sb === null) msg = `${A}: ${pa.length} players · ${B}: ${pb.length} players. Enter the score.`;
   else if (sa > sb) msg = `<b>${A} wins ${sa}-${sb}.</b> ${A} players get <b>${sa+BONUS}</b> each (${sa}+10). ${B} players get <b>${sb}</b> each.`;
   else if (sb > sa) msg = `<b>${B} wins ${sb}-${sa}.</b> ${B} players get <b>${sb+BONUS}</b> each (${sb}+10). ${A} players get <b>${sa}</b> each.`;
@@ -208,21 +278,26 @@ function preview() {
 
 // ---------- save
 $('#save').onclick = async () => {
-  const pa = nums($('#pA').value), pb = nums($('#pB').value);
+  const pa = playersOf('A'), pb = playersOf('B');
   const sa = parseInt($('#sA').value), sb = parseInt($('#sB').value);
+  if (!group) return toast('Pick the group first', true);
   if (!team.A || !team.B) return toast('Pick both team colors', true);
   if (team.A === team.B) return toast('Teams need different colors', true);
   if (!pa.length || !pb.length) return toast('Type jersey numbers for both teams', true);
-  if (pa.some(x => pb.includes(x))) return toast('Same jersey on both teams', true);
+  if (pa.some(x => pb.some(y => y.jersey === x.jersey && y.name === x.name))) return toast('Same kid on both teams', true);
+  if (pa.concat(pb).some(p => p.status === 'pick')) return toast('Tap the right name for the shared number', true);
   if (isNaN(sa) || isNaN(sb)) return toast('Enter both scores', true);
-  const body = {action:'add', id:'g'+Date.now()+Math.random().toString(36).slice(2,6), date: todayStr(), teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa, playersB:pb, coach:$('#coach').value.trim()};
+  const body = {action:'add', key:KEY, id:'g'+Date.now()+Math.random().toString(36).slice(2,6), date: todayStr(), group, teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa.map(p=>({jersey:p.jersey,name:p.name})), playersB:pb.map(p=>({jersey:p.jersey,name:p.name})), coach:$('#coach').value.trim()};
   $('#save').disabled = true; $('#save').textContent = 'SAVING…';
   try {
-    await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)});
-    toast(`Saved. ${team.A} ${sa} – ${team.B} ${sb} · ${pa.length+pb.length} players scored`);
-    $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; $('#heard').textContent='';
-    setTeam('A',''); setTeam('B',''); preview();
-    load(true);
+    const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)}).then(x => x.json()).catch(() => ({ok:true}));
+    if (r && r.error === 'auth') { showGate('Wrong passphrase'); }
+    else {
+      toast(`Saved. ${team.A} ${sa} – ${team.B} ${sb} · ${pa.length+pb.length} players scored`);
+      $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; $('#heard').textContent=''; picks = {A:{},B:{}};
+      setTeam('A',''); setTeam('B',''); preview();
+      load(true);
+    }
   } catch (e) { toast('Could not save. Check signal and try again.', true); }
   $('#save').disabled = false; $('#save').textContent = 'SAVE GAME';
 };
@@ -254,7 +329,7 @@ function wordsToNums(text) {
     const t = w[i].replace(/[.,]/g,'');
     if (TENS[t] !== undefined) { const nx = (w[i+1]||'').replace(/[.,]/g,''); if (SMALL[nx] !== undefined && SMALL[nx] < 10) { out.push(TENS[t]+SMALL[nx]); i += 2; } else { out.push(TENS[t]); i++; } continue; }
     if (SMALL[t] !== undefined) { out.push(SMALL[t]); i++; continue; }
-    if (t === 'hundred') { i++; continue; }
+    if (t === 'hundred') { const nx = (w[i+1]||'').replace(/[.,]/g,''); if (out.length && typeof out[out.length-1] === 'number' && out[out.length-1] < 10) { let v = out.pop()*100; if (TENS[nx] !== undefined) { v += TENS[nx]; i++; const n2 = (w[i+1]||'').replace(/[.,]/g,''); if (SMALL[n2] !== undefined && SMALL[n2] < 10) { v += SMALL[n2]; i++; } } else if (SMALL[nx] !== undefined) { v += SMALL[nx]; i++; } out.push(v); } i++; continue; }
     out.push(w[i]); i++;
   }
   return out.join(' ');
@@ -262,12 +337,11 @@ function wordsToNums(text) {
 function parseGame(raw) {
   let text = ' ' + wordsToNums(raw).toLowerCase().replace(/[.,!?]/g,' ') + ' ';
   text = text.replace(/\bgrey\b/g,'gray').replace(/\blight\b/g,'white').replace(/\bwhites?\b/g,'white');
-  // score: last "N to M" / "N - M" / "N M" after score/final
+  const gm = text.match(/\bgroup\s+([abc])\b/); if (gm) { setGroup(gm[1].toUpperCase()); text = text.replace(gm[0], ' '); }
   let sa=null, sb=null;
   let m = [...text.matchAll(/(\d+)\s*(?:to|-|–|dash|and)\s*(\d+)/g)].pop();
   if (!m) m = [...text.matchAll(/(?:score|final|won|beat|beats|win|wins)\s+(\d+)\s+(\d+)/g)].pop();
   if (m) { sa = +m[1]; sb = +m[2]; text = text.replace(m[0], ' '); }
-  // teams by color
   const colorRe = new RegExp('\\b(' + COLORS.map(c=>c.toLowerCase()).join('|') + ')\\b', 'g');
   const parts = []; let last = null; let idx = 0; let mm;
   while ((mm = colorRe.exec(text))) { if (last) parts.push({color:last, txt:text.slice(idx, mm.index)}); last = mm[1]; idx = mm.index + mm[0].length; }
@@ -284,56 +358,76 @@ function parseGame(raw) {
 
 // ---------- data
 async function load(force) {
+  if (!KEY) { showGate(); return; }
   if (!force && Date.now() - lastSync < 8000) { render(); return; }
   try {
-    const r = await fetch(API, {cache:'no-store'}); const d = await r.json();
-    if (d && d.ok) { DATA = d; lastSync = Date.now(); }
+    const r = await fetch(API + '?key=' + encodeURIComponent(KEY) + '&t=' + Date.now(), {cache:'no-store'}); const d = await r.json();
+    if (d && d.error === 'auth') { KEY = ''; ls('key',''); showGate('Wrong passphrase'); return; }
+    if (d && d.ok) { DATA = d; lastSync = Date.now(); if (!group) { const g = ls('group'); if (DATA.groups.includes(g)) setGroup(g); } renderGroupChips(); }
   } catch (e) { toast('Offline — showing last numbers', true); }
   render();
 }
-function nameOf(j) { return DATA.names[j] ? `#${j} ${DATA.names[j]}` : `#${j}`; }
-function board(points) {
-  const m = {};
-  for (const p of points) { const k = p.jersey; m[k] = m[k] || {j:k, pts:0, g:0, w:0}; m[k].pts += p.points; m[k].g++; m[k].w += p.won; }
-  return Object.values(m).sort((a,b) => b.pts - a.pts || b.w - a.w || a.j.localeCompare(b.j, undefined, {numeric:true}));
+function label(p) { return p.name ? `#${p.jersey} ${p.name}` : `#${p.jersey}`; }
+function pkey(p) { return (p.name ? norm(p.name) : '#' + p.jersey); }
+// today's leaders for a group
+function boardToday(g) {
+  const t = todayStr(), m = {};
+  DATA.points.filter(p => p.date === t && p.group === g).forEach(p => { const k = pkey(p); m[k] = m[k] || {jersey:p.jersey, name:p.name, pts:0, g:0, w:0}; m[k].pts += p.points; m[k].g++; m[k].w += p.won; });
+  return Object.values(m).sort((a,b) => b.pts - a.pts || b.w - a.w);
 }
-function tableHTML(rows, showAvg) {
+// season board for a group: roster rows + weeks
+function boardSeason(g) {
+  const maxWeek = Math.max(5, weekOf(todayStr()), ...DATA.points.map(p => p.week||1));
+  const m = {};
+  DATA.roster.filter(r => r.group === g).forEach(r => { m[norm(r.name)] = {jersey:r.jersey, name:r.name, manual:r.manual||{}, app:{}}; });
+  DATA.points.filter(p => p.group === g).forEach(p => { const k = pkey(p); m[k] = m[k] || {jersey:p.jersey, name:p.name, manual:{}, app:{}}; m[k].app[p.week] = (m[k].app[p.week]||0) + p.points; });
+  const rows = Object.values(m).map(r => { const weeks = []; let total = 0; for (let w=1; w<=maxWeek; w++) { const v = r.app[w] != null ? r.app[w] : (r.manual[w] != null ? r.manual[w] : ''); weeks.push(v); if (v !== '') total += v; } return {jersey:r.jersey, name:r.name, weeks, total}; });
+  return {maxWeek, rows: rows.sort((a,b) => b.total - a.total || String(a.name).localeCompare(String(b.name)))};
+}
+function todayTable(rows) {
   if (!rows.length) return '<div class="empty">No games yet</div>';
-  let h = `<table><tr><th></th><th>Player</th><th class="num">Pts</th><th class="num">G</th><th class="num">W</th>${showAvg?'<th class="num">Avg</th>':''}</tr>`;
-  rows.forEach((r,i) => { h += `<tr class="${i<3?'top':''}"><td><span class="rank">${i+1}</span></td><td>${nameOf(r.j)}</td><td class="num">${r.pts}</td><td class="num">${r.g}</td><td class="num">${r.w}</td>${showAvg?`<td class="num">${(r.pts/r.g).toFixed(1)}</td>`:''}</tr>`; });
+  return `<table><tr><th></th><th>Player</th><th class="num">Pts</th><th class="num">G</th><th class="num">W</th></tr>` + rows.map((r,i) => `<tr class="${i<3?'top':''}"><td><span class="rank">${i+1}</span></td><td>${esc(label(r))}</td><td class="num">${r.pts}</td><td class="num">${r.g}</td><td class="num">${r.w}</td></tr>`).join('') + '</table>';
+}
+function seasonTable(b) {
+  if (!b.rows.length) return '<div class="empty">No players in this group yet</div>';
+  let h = '<table><tr><th>#</th><th>Player</th>'; for (let w=1; w<=b.maxWeek; w++) h += `<th class="num">Wk ${w}</th>`; h += '<th class="num">Total</th></tr>';
+  b.rows.forEach((r,i) => { h += `<tr class="${i<3?'top':''}"><td>${esc(r.jersey)}</td><td>${esc(r.name)}</td>` + r.weeks.map(v => `<td class="num">${v}</td>`).join('') + `<td class="num tot">${r.total}</td></tr>`; });
   return h + '</table>';
 }
 function render() {
   const t = todayStr();
-  const tp = DATA.points.filter(p => p.date === t), tg = DATA.games.filter(g => g.date === t);
-  const tb = board(tp), sb = board(DATA.points);
+  const tg = DATA.games.filter(g => g.date === t);
   const syncTxt = lastSync ? 'Updated ' + new Date(lastSync).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
   $('#sync1').textContent = syncTxt; $('#sync2').textContent = syncTxt;
-  $('#champToday').innerHTML = tb.length ? `<div class="champ"><div class="sub">TODAY'S CHAMP</div><div class="big">${nameOf(tb[0].j)}</div><div class="sub">${tb[0].pts} points · ${tb[0].w} wins in ${tb[0].g} games</div></div>` : '';
-  $('#todayBoard').innerHTML = tableHTML(tb, false);
-  $('#seasonBoard').innerHTML = tableHTML(sb, true);
+  // today
+  $('#champToday').innerHTML = DATA.groups.map(g => { const b = boardToday(g); if (!b.length) return ''; return `<div class="champ"><div class="sub">GROUP ${g} · TODAY'S CHAMP</div><div class="big">${esc(label(b[0]))}</div><div class="sub">${b[0].pts} points · ${b[0].w} wins in ${b[0].g} games</div></div><div class="card"><p class="lbl">Group ${g} today</p>${todayTable(b)}</div>`; }).join('') || '<div class="card"><div class="empty">No games today yet</div></div>';
   $('#todayGames').innerHTML = tg.length ? tg.slice().reverse().map(g => `
     <div class="game"><div>
-      <div class="sc"><span class="${g.scoreA>g.scoreB?'w':''}">${g.teamA} ${g.scoreA}</span> – <span class="${g.scoreB>g.scoreA?'w':''}">${g.teamB} ${g.scoreB}</span></div>
-      <div class="who">${g.time}${g.coach?' · '+g.coach:''} · ${g.teamA}: ${g.playersA.join(' ')} · ${g.teamB}: ${g.playersB.join(' ')}</div>
+      <div class="sc"><span class="${g.scoreA>g.scoreB?'w':''}">${esc(g.teamA)} ${g.scoreA}</span> – <span class="${g.scoreB>g.scoreA?'w':''}">${esc(g.teamB)} ${g.scoreB}</span> <span style="font-size:13px;color:var(--mute)">Group ${esc(g.group)}</span></div>
+      <div class="who">${esc(g.time)}${g.coach?' · '+esc(g.coach):''} · ${esc(g.teamA)}: ${g.playersA.map(p=>p.jersey).join(' ')} · ${esc(g.teamB)}: ${g.playersB.map(p=>p.jersey).join(' ')}</div>
     </div><button class="undo" data-del="${g.id}">Undo</button></div>`).join('') : '<div class="empty">No games today yet</div>';
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b));
-  // print sheet
+  // season
+  if (!seasonGroup) seasonGroup = group || DATA.groups[0];
+  $('#seasonTabs').innerHTML = DATA.groups.map(g => `<button class="${g===seasonGroup?'on':''}" data-sg="${g}">Group ${g}</button>`).join('');
+  document.querySelectorAll('[data-sg]').forEach(b => b.onclick = () => { seasonGroup = b.dataset.sg; render(); });
+  $('#seasonBoard').innerHTML = seasonTable(boardSeason(seasonGroup));
+  // print: one page per group
   const dateNice = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  $('#print').innerHTML = `<h1>TDBA 3on3 League — Day Sheet</h1><div>${dateNice} · ${tg.length} games today · Win = +10 bonus</div>
-    ${tb.length ? `<div class="champline">🏆 Today's Champ: ${nameOf(tb[0].j)} — ${tb[0].pts} pts</div>` : ''}
-    <div class="two"><div><h2>Today</h2>${tableHTML(tb,false)}</div><div><h2>Season standings</h2>${tableHTML(sb,true)}</div></div>
-    <div style="margin-top:10px;font-size:10px">Bigger Than Basketball · teddydupay.com</div>`;
+  $('#print').innerHTML = DATA.groups.map(g => { const tb = boardToday(g), sb = boardSeason(g); const n = tg.filter(x => x.group === g).length; return `<div class="pg"><h1>TDBA 3on3 League — Group ${g}</h1><div>${dateNice} · Week ${weekOf(t)} · ${n} games today · Win = +10 bonus</div>
+    ${tb.length ? `<div class="champline">🏆 Today's Champ: ${esc(label(tb[0]))} — ${tb[0].pts} pts</div><h2>Today</h2>${todayTable(tb)}` : ''}
+    <h2>Season board</h2>${seasonTable(sb)}<div style="margin-top:8px;font-size:9px">Bigger Than Basketball · teddydupay.com</div></div>`; }).join('');
 }
 async function del(btn) {
   if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'Sure? Tap again'; setTimeout(() => { btn.dataset.armed=''; btn.textContent='Undo'; }, 4000); return; }
   btn.disabled = true; btn.textContent = 'Removing…';
-  try { await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'delete', id: btn.dataset.del})}); toast('Game removed'); } catch(e) { toast('Could not remove', true); }
+  try { await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'delete', key:KEY, id: btn.dataset.del})}); toast('Game removed'); } catch(e) { toast('Could not remove', true); }
   load(true);
 }
 $('#doPrint').onclick = async () => { await load(true); window.print(); };
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 setInterval(() => { if (!$('#tab-score').hidden) return; load(); }, 25000);
+renderGroupChips();
 load(true);
 </script>
 </body>
