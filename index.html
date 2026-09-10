@@ -79,6 +79,26 @@ tr.top td{font-weight:800}
 #gate .box{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:380px;text-align:center}
 #gate h2{margin:0 0 6px;color:var(--navy)}
 #gate p{margin:0 0 14px;color:var(--mute);font-size:15px}
+.steps{display:grid;gap:10px}
+.stepbtn{display:flex;align-items:center;gap:12px;width:100%;border:0;border-radius:14px;padding:14px;background:var(--navy);color:#fff;text-align:left;box-shadow:0 2px 0 #0d0f33}
+.stepbtn .n{flex:0 0 44px;height:44px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:22px}
+.stepbtn .t{font-size:13px;opacity:.85;text-transform:uppercase;letter-spacing:.5px}
+.stepbtn .s{font-size:17px;font-weight:800;line-height:1.25}
+.stepbtn.live{background:var(--red);box-shadow:0 2px 0 #a0161b;animation:pulse 1s infinite}
+.stepbtn.done .n{background:var(--ok)}
+#listen{position:fixed;left:0;right:0;bottom:0;background:var(--red);color:#fff;padding:16px 16px 22px;z-index:40;box-shadow:0 -4px 16px rgba(0,0,0,.25)}
+#listen[hidden]{display:none}
+#listen .hd{display:flex;align-items:center;gap:10px;font-weight:900;font-size:18px;letter-spacing:.5px}
+#listen .dot{width:14px;height:14px;border-radius:50%;background:#fff;animation:pulse .8s infinite}
+#listen .live{margin-top:10px;background:rgba(255,255,255,.15);border-radius:10px;padding:12px;font-size:20px;min-height:52px;line-height:1.3}
+#listen .live .dim{opacity:.6;font-size:16px}
+#listen .stop{margin-top:10px;width:100%;border:2px solid #fff;background:#fff;color:var(--red);border-radius:12px;padding:12px;font-size:18px;font-weight:800}
+.heardbox{background:#eef1ff;border-radius:10px;padding:10px 12px;font-size:15px;margin-top:10px;min-height:20px}
+.heardbox b{color:var(--navy)}
+.teamhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.jersey{width:22px;height:22px;border-radius:6px;border:2px solid #999}
+.jersey.white{background:#fff}
+.jersey.dark{background:#1B1E53;border-color:#1B1E53}
 #print{display:none}
 @media print{
   body{background:#fff;font-size:11px}
@@ -112,33 +132,34 @@ tr.top td{font-weight:800}
   </div>
 
   <div class="card">
-    <p class="lbl">Say the whole game (or type below)</p>
-    <button class="btn navy" id="sayAll">🎤 Say it: "White 26 27 18 beat Blue 1 2 6, 10 to 9"</button>
-    <div class="saybox" id="heard"></div>
+    <p class="lbl">Say it — two steps</p>
+    <div class="steps">
+      <button class="stepbtn" id="step1"><span class="n">1</span><span><span class="t">Tap, then say the score</span><br><span class="s">"Home defeats Guests, 12 to 9"</span></span></button>
+      <button class="stepbtn" id="step2"><span class="n">2</span><span><span class="t">Tap, then say the players</span><br><span class="s">"White players 5, 30, 36. Blue players 22, 37, 41."</span></span></button>
+    </div>
+    <div class="heardbox" id="heard">Home = white jerseys. Guests = dark jerseys. You can also type below.</div>
   </div>
 
   <div class="card">
-    <p class="lbl">Team A</p>
-    <div class="chips" data-team="A"></div>
-    <div class="row"><input type="text" id="pA" inputmode="numeric" placeholder="jersey numbers  26 27 18 22" autocomplete="off"><button class="mic" data-mic="pA" title="speak numbers">🎤</button></div>
+    <div class="teamhead"><span class="jersey white"></span><p class="lbl" style="margin:0">Home — white jerseys</p></div>
+    <div class="row"><input type="text" id="pA" inputmode="numeric" placeholder="jersey numbers  5 30 36" autocomplete="off"><button class="mic" data-mic="pA" title="speak numbers">🎤</button></div>
     <div class="names" id="nmA"></div>
   </div>
 
   <div class="card">
-    <p class="lbl">Team B</p>
-    <div class="chips" data-team="B"></div>
-    <div class="row"><input type="text" id="pB" inputmode="numeric" placeholder="jersey numbers  1 2 6" autocomplete="off"><button class="mic" data-mic="pB" title="speak numbers">🎤</button></div>
+    <div class="teamhead"><span class="jersey dark"></span><p class="lbl" style="margin:0">Guests — dark jerseys</p></div>
+    <div class="row"><input type="text" id="pB" inputmode="numeric" placeholder="jersey numbers  22 37 41" autocomplete="off"><button class="mic" data-mic="pB" title="speak numbers">🎤</button></div>
     <div class="names" id="nmB"></div>
   </div>
 
   <div class="card">
     <p class="lbl">Final score</p>
     <div class="scores">
-      <div class="scorebox"><div class="team" id="nA">Team A</div><input type="number" id="sA" inputmode="numeric" placeholder="0"><div class="pm"><button data-pm="sA:-1">−</button><button data-pm="sA:1">+</button></div></div>
+      <div class="scorebox"><div class="team" id="nA">HOME</div><input type="number" id="sA" inputmode="numeric" placeholder="0"><div class="pm"><button data-pm="sA:-1">−</button><button data-pm="sA:1">+</button></div></div>
       <div class="vs">vs</div>
-      <div class="scorebox"><div class="team" id="nB">Team B</div><input type="number" id="sB" inputmode="numeric" placeholder="0"><div class="pm"><button data-pm="sB:-1">−</button><button data-pm="sB:1">+</button></div></div>
+      <div class="scorebox"><div class="team" id="nB">GUESTS</div><input type="number" id="sB" inputmode="numeric" placeholder="0"><div class="pm"><button data-pm="sB:-1">−</button><button data-pm="sB:1">+</button></div></div>
     </div>
-    <div class="preview" id="preview">Pick the group, teams, jersey numbers, score.</div>
+    <div class="preview" id="preview">Pick the group, then jersey numbers and score.</div>
   </div>
 
   <div class="card">
@@ -174,15 +195,17 @@ tr.top td{font-weight:800}
 </main>
 
 <div id="print"></div>
+<div id="listen" hidden><div class="hd"><span class="dot"></span><span id="listenTitle">LISTENING — talk now</span></div><div class="live" id="liveText"><span class="dim">Waiting for your voice…</span></div><button class="stop" id="stopBtn">DONE TALKING</button></div>
 <div class="toast" id="toast"></div>
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbw9myq61cJ4tjy3hIl5SobEluPGa1u7H5xI1XXmYqoBnav1UxxFQtsXr55NUwB84qAS/exec';
 const SHEET = 'https://docs.google.com/spreadsheets/d/1eXSkEoSGP_-Jz1ZE_UC7v4klrSRnpcC7XVFxG810PKE/edit';
-const COLORS = ['White','Red','Blue','Black','Yellow','Green','Orange','Gray','Purple','Pink'];
+const HOME = 'Home', GUEST = 'Guests';
+const DARK = 'dark|blue|red|black|green|gray|grey|purple|orange|yellow|navy|guest|guests|guests\'|visitor|visitors|away';
 const BONUS = 10;
 let DATA = {games:[], points:[], roster:[], groups:['A','B','C'], seasonStart:'2026-08-22'};
-let team = {A:'', B:''};
+let team = {A:HOME, B:GUEST};
 let group = '';
 let picks = {A:{}, B:{}};   // jersey -> chosen name when duplicates
 let seasonGroup = '';
@@ -221,16 +244,7 @@ function renderGroupChips() {
   DATA.groups.forEach(g => { const el = document.createElement('button'); el.className = 'chip big' + (g === group ? ' on' : ''); el.textContent = 'Group ' + g; el.onclick = () => setGroup(g); wrap.appendChild(el); });
 }
 function setGroup(g) { group = g; ls('group', g); renderGroupChips(); $('#hweek').textContent = 'Group ' + g + ' · Week ' + weekOf(todayStr()); preview(); }
-for (const t of ['A','B']) {
-  const wrap = document.querySelector(`.chips[data-team=${t}]`);
-  COLORS.forEach(c => { const el = document.createElement('button'); el.className='chip'; el.textContent=c; el.onclick = () => setTeam(t, c); wrap.appendChild(el); });
-}
-function setTeam(t, c) {
-  team[t] = c;
-  document.querySelectorAll(`.chips[data-team=${t}] .chip`).forEach(el => el.classList.toggle('on', el.textContent === c));
-  $('#n'+t).textContent = c || ('Team '+t);
-  preview();
-}
+function setTeam() {}
 
 // ---------- inputs
 document.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { const [id,d] = b.dataset.pm.split(':'); const el = $('#'+id); el.value = Math.max(0, (parseInt(el.value)||0) + parseInt(d)); preview(); });
@@ -264,7 +278,7 @@ function preview() {
   renderNames('A'); renderNames('B');
   const pa = playersOf('A'), pb = playersOf('B');
   const sa = $('#sA').value === '' ? null : parseInt($('#sA').value), sb = $('#sB').value === '' ? null : parseInt($('#sB').value);
-  const A = team.A || 'Team A', B = team.B || 'Team B';
+  const A = 'Home (white)', B = 'Guests (dark)';
   const dup = pa.filter(x => pb.some(y => y.jersey === x.jersey && (y.name === x.name)));
   let msg = '';
   if (!group) msg = 'Pick the group (A, B or C) first.';
@@ -282,8 +296,6 @@ $('#save').onclick = async () => {
   const pa = playersOf('A'), pb = playersOf('B');
   const sa = parseInt($('#sA').value), sb = parseInt($('#sB').value);
   if (!group) return toast('Pick the group first', true);
-  if (!team.A || !team.B) return toast('Pick both team colors', true);
-  if (team.A === team.B) return toast('Teams need different colors', true);
   if (!pa.length || !pb.length) return toast('Type jersey numbers for both teams', true);
   if (pa.some(x => pb.some(y => y.jersey === x.jersey && y.name === x.name))) return toast('Same kid on both teams', true);
   if (pa.concat(pb).some(p => p.status === 'pick')) return toast('Tap the right name for the shared number', true);
@@ -294,9 +306,10 @@ $('#save').onclick = async () => {
     const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)}).then(x => x.json()).catch(() => ({ok:true}));
     if (r && r.error === 'auth') { showGate('Wrong passphrase'); }
     else {
-      toast(`Saved. ${team.A} ${sa} – ${team.B} ${sb} · ${pa.length+pb.length} players scored`);
-      $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; $('#heard').textContent=''; picks = {A:{},B:{}};
-      setTeam('A',''); setTeam('B',''); preview();
+      toast(`Saved. Home ${sa} – Guests ${sb} · ${pa.length+pb.length} players scored`);
+      $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; picks = {A:{},B:{}};
+      $('#heard').innerHTML = 'Saved. Next game: tap Step 1.'; $('#step1').classList.remove('done'); $('#step2').classList.remove('done');
+      preview();
       load(true); boards();
     }
   } catch (e) { toast('Could not save. Check signal and try again.', true); }
@@ -307,21 +320,42 @@ $('#save').onclick = async () => {
 function boards() { try { fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'boards', key:KEY})}).catch(()=>{}); } catch(e) {} }
 function toast(m, bad) { const t = $('#toast'); t.textContent = m; t.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(t._t); t._t = setTimeout(() => t.className='toast', 3200); }
 
-// ---------- voice
+// ---------- voice (live transcript, two steps)
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SR) { document.querySelectorAll('.mic').forEach(b => b.style.display='none'); $('#sayAll').textContent = 'Voice not supported on this browser — type below'; $('#sayAll').disabled = true; }
-function listen(btn, cb) {
-  if (!SR) return;
-  const r = new SR(); r.lang = 'en-US'; r.interimResults = true; r.maxAlternatives = 1;
-  let final = '';
-  btn.classList.add('live');
-  r.onresult = e => { let s=''; for (const res of e.results) s += res[0].transcript + ' '; $('#heard').textContent = '“' + s.trim() + '”'; if (e.results[e.results.length-1].isFinal) final = s; };
-  r.onerror = e => { btn.classList.remove('live'); toast(e.error === 'not-allowed' ? 'Allow the microphone in your browser' : 'Did not catch that — try again', true); };
-  r.onend = () => { btn.classList.remove('live'); if (final.trim()) cb(final.trim()); else if ($('#heard').textContent) cb($('#heard').textContent.replace(/[“”]/g,'')); };
-  try { r.start(); } catch(e) { btn.classList.remove('live'); }
+let rec = null, recBtn = null, recTimer = null;
+function micHelp(code) {
+  if (code === 'not-allowed' || code === 'service-not-allowed') return 'Microphone blocked. iPhone: Settings → Safari → Microphone → Allow. Then reload.';
+  if (code === 'no-speech') return 'No voice heard. Tap, wait for the ding, then talk right away.';
+  if (code === 'audio-capture') return 'No microphone found on this phone.';
+  if (code === 'network') return 'No signal for voice. Type the numbers instead.';
+  return 'Voice did not work (' + code + '). Type the numbers instead.';
 }
-document.querySelectorAll('[data-mic]').forEach(b => b.onclick = () => listen(b, text => { const el = $('#'+b.dataset.mic); const n = nums(wordsToNums(text)); if (n.length) { el.value = n.join(' '); preview(); } else toast('No numbers heard', true); }));
-$('#sayAll').onclick = () => listen($('#sayAll'), text => parseGame(text));
+function showListen(title) { $('#listenTitle').textContent = title; $('#liveText').innerHTML = '<span class="dim">Waiting for your voice…</span>'; $('#listen').hidden = false; }
+function hideListen() { $('#listen').hidden = true; }
+function stopListen() { try { rec && rec.stop(); } catch(e) {} }
+$('#stopBtn').onclick = stopListen;
+function listen(btn, title, cb) {
+  if (!SR) { toast('Voice not supported here — type the numbers', true); return; }
+  if (rec) { stopListen(); return; }
+  const r = new SR(); r.lang = 'en-US'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+  let final = '', latest = '', gotError = '';
+  rec = r; recBtn = btn; btn.classList.add('live'); showListen(title);
+  r.onstart = () => { $('#liveText').innerHTML = '<span class="dim">🎙 Mic is on — talk now</span>'; };
+  r.onaudiostart = () => { $('#liveText').innerHTML = '<span class="dim">🎙 Hearing audio — keep talking</span>'; };
+  r.onresult = e => { let s = ''; for (const res of e.results) s += res[0].transcript + ' '; latest = s.trim(); $('#liveText').textContent = latest; if (e.results[e.results.length-1].isFinal) final = latest; };
+  r.onerror = e => { gotError = e.error || 'unknown'; };
+  r.onend = () => {
+    btn.classList.remove('live'); rec = null; clearTimeout(recTimer); hideListen();
+    const text = (final || latest).trim();
+    if (text) { $('#heard').innerHTML = 'Heard: <b>' + esc(text) + '</b>'; cb(text); }
+    else { const msg = micHelp(gotError || 'no-speech'); $('#heard').innerHTML = '<span style="color:var(--red)">' + esc(msg) + '</span>'; toast(msg, true); }
+  };
+  try { r.start(); } catch(e) { btn.classList.remove('live'); rec = null; hideListen(); toast('Could not start the mic — type the numbers', true); }
+  recTimer = setTimeout(stopListen, 20000);
+}
+document.querySelectorAll('[data-mic]').forEach(b => b.onclick = () => listen(b, 'LISTENING — say the jersey numbers', text => { const el = $('#'+b.dataset.mic); const n = nums(wordsToNums(text)); if (n.length) { el.value = n.join(' '); preview(); } else toast('No numbers heard', true); }));
+$('#step1').onclick = () => listen($('#step1'), 'STEP 1 — say the score', text => parseScore(text));
+$('#step2').onclick = () => listen($('#step2'), 'STEP 2 — say the players', text => parsePlayers(text));
 
 const SMALL = {zero:0,oh:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19};
 const TENS = {twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
@@ -337,26 +371,46 @@ function wordsToNums(text) {
   }
   return out.join(' ');
 }
-function parseGame(raw) {
-  let text = ' ' + wordsToNums(raw).toLowerCase().replace(/[.,!?]/g,' ') + ' ';
-  text = text.replace(/\bgrey\b/g,'gray').replace(/\blight\b/g,'white').replace(/\bwhites?\b/g,'white');
-  const gm = text.match(/\bgroup\s+([abc])\b/); if (gm) { setGroup(gm[1].toUpperCase()); text = text.replace(gm[0], ' '); }
-  let sa=null, sb=null;
-  let m = [...text.matchAll(/(\d+)\s*(?:to|-|–|dash|and)\s*(\d+)/g)].pop();
-  if (!m) m = [...text.matchAll(/(?:score|final|won|beat|beats|win|wins)\s+(\d+)\s+(\d+)/g)].pop();
-  if (m) { sa = +m[1]; sb = +m[2]; text = text.replace(m[0], ' '); }
-  const colorRe = new RegExp('\\b(' + COLORS.map(c=>c.toLowerCase()).join('|') + ')\\b', 'g');
-  const parts = []; let last = null; let idx = 0; let mm;
-  while ((mm = colorRe.exec(text))) { if (last) parts.push({color:last, txt:text.slice(idx, mm.index)}); last = mm[1]; idx = mm.index + mm[0].length; }
-  if (last) parts.push({color:last, txt:text.slice(idx)});
-  const teams = []; for (const p of parts) { const c = p.color[0].toUpperCase()+p.color.slice(1); let t = teams.find(x => x.color===c); if (!t) { t = {color:c, players:[]}; teams.push(t); } t.players.push(...nums(p.txt)); }
-  if (teams.length < 2) { toast('Heard it, but need two team colors. Type it below.', true); return; }
-  const winnerFirst = /\b(beat|beats|won|wins|over|defeated)\b/.test(text);
-  setTeam('A', teams[0].color); setTeam('B', teams[1].color);
-  $('#pA').value = [...new Set(teams[0].players)].join(' '); $('#pB').value = [...new Set(teams[1].players)].join(' ');
-  if (sa !== null) { if (winnerFirst && sb > sa) [sa,sb] = [sb,sa]; $('#sA').value = sa; $('#sB').value = sb; }
-  preview();
-  toast(sa === null ? 'Got the teams — now enter the score' : 'Check it, then SAVE GAME');
+function clean(raw) {
+  let t = ' ' + wordsToNums(raw).toLowerCase().replace(/[.,!?;:]/g,' ') + ' ';
+  t = t.replace(/\bgrey\b/g,'gray').replace(/\bwhites?\b/g,'home').replace(/\bhome team\b/g,'home').replace(/\bguest(s|s')?\b/g,'guest').replace(/\bvisitors?\b/g,'guest').replace(/\baway\b/g,'guest');
+  t = t.replace(new RegExp('\\b(' + DARK + ')\\b', 'g'), 'guest');
+  const gm = t.match(/\bgroup\s+([abc])\b/); if (gm) { setGroup(gm[1].toUpperCase()); t = t.replace(gm[0], ' '); }
+  return t;
+}
+// STEP 1: "Home defeats Guests 12 to 9"  /  "Guests beat Home 14 to 8"
+function parseScore(raw) {
+  const t = clean(raw);
+  let m = [...t.matchAll(/(\d+)\s*(?:to|-|–|dash|and|two)\s*(\d+)/g)].pop() || [...t.matchAll(/(\d+)\s+(\d+)/g)].pop();
+  if (!m) { const mh = t.match(/\bhome\D{0,12}(\d+)/), mg = t.match(/\bguest\D{0,12}(\d+)/); if (mh && mg) { $('#sA').value = +mh[1]; $('#sB').value = +mg[1]; $('#step1').classList.add('done'); preview(); toast('Score set. Now Step 2.'); return; } }
+  if (!m) { $('#heard').innerHTML += ' <span style="color:var(--red)">— no score heard. Say "Home defeats Guests 12 to 9".</span>'; return; }
+  let hi = Math.max(+m[1], +m[2]), lo = Math.min(+m[1], +m[2]);
+  const iHome = t.indexOf('home'), iGuest = t.indexOf('guest');
+  const beat = /\b(defeat|defeats|defeated|beat|beats|won|wins|over|win)\b/.test(t);
+  let homeScore, guestScore;
+  if (iHome >= 0 && iGuest >= 0) {
+    const homeFirst = iHome < iGuest;
+    if (beat) { homeScore = homeFirst ? hi : lo; guestScore = homeFirst ? lo : hi; }
+    else { homeScore = homeFirst ? +m[1] : +m[2]; guestScore = homeFirst ? +m[2] : +m[1]; }
+  } else if (iGuest >= 0 && iHome < 0) { guestScore = beat ? hi : +m[1]; homeScore = beat ? lo : +m[2]; }
+  else { homeScore = +m[1]; guestScore = +m[2]; }
+  $('#sA').value = homeScore; $('#sB').value = guestScore;
+  $('#step1').classList.add('done'); preview();
+  toast(homeScore === guestScore ? `Tie ${homeScore}-${guestScore}. Now Step 2.` : (homeScore > guestScore ? `Home wins ${homeScore}-${guestScore}. Now Step 2.` : `Guests win ${guestScore}-${homeScore}. Now Step 2.`));
+}
+// STEP 2: "White players 5 30 36, blue players 22 37 41"
+function parsePlayers(raw) {
+  const t = clean(raw);
+  const re = /\b(home|guest)\b/g; const parts = []; let last = null, idx = 0, mm;
+  while ((mm = re.exec(t))) { if (last) parts.push({team:last, txt:t.slice(idx, mm.index)}); last = mm[1]; idx = mm.index + mm[0].length; }
+  if (last) parts.push({team:last, txt:t.slice(idx)});
+  const home = [], guest = [];
+  parts.forEach(p => (p.team === 'home' ? home : guest).push(...nums(p.txt)));
+  if (!parts.length) { $('#heard').innerHTML += ' <span style="color:var(--red)">— say "White players … Blue players …".</span>'; return; }
+  if (home.length) $('#pA').value = [...new Set(home)].join(' ');
+  if (guest.length) $('#pB').value = [...new Set(guest)].join(' ');
+  $('#step2').classList.add('done'); preview();
+  toast(`Home: ${home.length} players · Guests: ${guest.length} players. Check names, then SAVE.`);
 }
 
 // ---------- data
