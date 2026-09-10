@@ -263,7 +263,10 @@ function splitTok(tok, J) {
     for (let L = Math.min(3, tok.length - i); L >= 1; L--) { const p = String(parseInt(tok.slice(i, i+L), 10)); if (J.has(p) && (L === 1 || tok[i] !== '0')) go(i+L, acc.concat(p)); }
   };
   go(0, []);
-  return best && best.length > 1 ? best : [tok];
+  if (best && best.length > 1) return best;
+  // no clean split: peel known jerseys off the front, leave the tail (it shows as "not on roster" so the coach can fix it)
+  if (tok.length >= 3) { for (let L = Math.min(3, tok.length - 1); L >= 1; L--) { const p = String(parseInt(tok.slice(0, L), 10)), rest = tok.slice(L); if (J.has(p) && rest.length <= 2 && rest[0] !== '0') return [p, String(parseInt(rest, 10))]; } }
+  return [tok];
 }
 function fixNums(list) { if (!group) return list; const J = jerseySet(); return list.flatMap(t => splitTok(t, J)); }
 function nums(s) { return [...new Set(fixNums(rawNums(s)))]; }
