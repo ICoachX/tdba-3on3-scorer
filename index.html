@@ -297,12 +297,14 @@ $('#save').onclick = async () => {
       toast(`Saved. ${team.A} ${sa} – ${team.B} ${sb} · ${pa.length+pb.length} players scored`);
       $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; $('#heard').textContent=''; picks = {A:{},B:{}};
       setTeam('A',''); setTeam('B',''); preview();
-      load(true);
+      load(true); boards();
     }
   } catch (e) { toast('Could not save. Check signal and try again.', true); }
   $('#save').disabled = false; $('#save').textContent = 'SAVE GAME';
 };
 
+// refresh the Board A/B/C tabs in the sheet in the background (never blocks a coach)
+function boards() { try { fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'boards', key:KEY})}).catch(()=>{}); } catch(e) {} }
 function toast(m, bad) { const t = $('#toast'); t.textContent = m; t.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(t._t); t._t = setTimeout(() => t.className='toast', 3200); }
 
 // ---------- voice
@@ -423,7 +425,7 @@ async function del(btn) {
   if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'Sure? Tap again'; setTimeout(() => { btn.dataset.armed=''; btn.textContent='Undo'; }, 4000); return; }
   btn.disabled = true; btn.textContent = 'Removing…';
   try { await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'delete', key:KEY, id: btn.dataset.del})}); toast('Game removed'); } catch(e) { toast('Could not remove', true); }
-  load(true);
+  load(true); boards();
 }
 $('#doPrint').onclick = async () => { await load(true); window.print(); };
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
