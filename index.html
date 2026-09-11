@@ -155,14 +155,14 @@ tr.top td{font-weight:800}
 
   <div class="card">
     <div class="teamhead"><span class="jersey white"></span><p class="lbl" style="margin:0">Home — white jerseys</p></div>
-    <div class="row"><input type="text" id="pA" inputmode="numeric" placeholder="jersey numbers  5 30 36" autocomplete="off"><button class="mic" data-mic="pA" title="speak numbers">🎤</button></div>
+    <div class="row"><input type="text" id="pA" placeholder="jersey numbers  5 30 36" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"><button class="mic" data-mic="pA" title="speak numbers">🎤</button></div>
     <div class="names" id="nmA"></div>
     <button class="photobtn" data-shot="home">📷 Take picture of the Home team</button><div class="shot" id="shotHome"></div>
   </div>
 
   <div class="card">
     <div class="teamhead"><span class="jersey dark"></span><p class="lbl" style="margin:0">Guests — dark jerseys</p></div>
-    <div class="row"><input type="text" id="pB" inputmode="numeric" placeholder="jersey numbers  22 37 41" autocomplete="off"><button class="mic" data-mic="pB" title="speak numbers">🎤</button></div>
+    <div class="row"><input type="text" id="pB" placeholder="jersey numbers  22 37 41" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"><button class="mic" data-mic="pB" title="speak numbers">🎤</button></div>
     <div class="names" id="nmB"></div>
     <button class="photobtn" data-shot="guest">📷 Take picture of the Guest team</button><div class="shot" id="shotGuest"></div>
   </div>
@@ -268,6 +268,47 @@ function setTeam() {}
 document.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { const [id,d] = b.dataset.pm.split(':'); const el = $('#'+id); el.value = Math.max(0, (parseInt(el.value)||0) + parseInt(d)); preview(); });
 ['pA','pB','sA','sB'].forEach(id => $('#'+id).addEventListener('input', preview));
 function rawNums(s) { return String(s||'').replace(/[^0-9\s,]/g,' ').split(/[\s,]+/).filter(Boolean).map(x => String(parseInt(x,10))); }
+// jersey-letter tags: when kids in one group share a number, each gets number + the shortest start of their first name
+// that no other kid on that number has ("5T", "30JAM"). Built from the loaded roster every time. Input only — boards show plain numbers.
+const firstName = n => String(n||'').trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g,'');
+function tagsFor(g) {
+  const by = {}, tags = {}, dupNums = new Set();
+  rosterFor(g).forEach(r => (by[r.jersey] = by[r.jersey] || []).push(r));
+  Object.entries(by).forEach(([j, list]) => {
+    if (list.length < 2) return; dupNums.add(j);
+    const fn = list.map(r => firstName(r.name));
+    list.forEach((r, i) => { for (let L = 1; L <= fn[i].length; L++) { const p = fn[i].slice(0, L); if (fn.every((o, k) => k === i || !o.startsWith(p))) { tags[j + p] = r; break; } } });
+  });
+  return {tags, dupNums};
+}
+// letters after a shared number -> that kid's tag, or '' when they name nobody or more than one ("30J" stays a bare 30).
+// Accepts the tag, more of the name ("30JAMAL", "30 Jade"), or a spoken letter ("5 tee").
+const LETTER = {bee:'B',be:'B',see:'C',sea:'C',cee:'C',dee:'D',gee:'G',jay:'J',kay:'K',el:'L',elle:'L',em:'M',en:'N',pee:'P',tee:'T',tea:'T',vee:'V',zee:'Z'};
+const FILLER = new Set(['A','AN','AND','THE','THEN','PLUS','WITH','TEAM','PLAYER','PLAYERS','NUMBER','NUMBERS','ALSO','TO','TOO','ON','IS']);
+function tagOf(j, w, T) {
+  if (!w || !T.dupNums.has(j)) return '';
+  const hit = rosterFor(group).filter(r => r.jersey === j && firstName(r.name).startsWith(w));
+  if (hit.length !== 1) return '';
+  return Object.keys(T.tags).find(k => T.tags[k] === hit[0]) || '';
+}
+// "5 30 36", "5T 30jam", "5 t", "30 jam" -> ['5','30JAM',...]. Voice also un-glues merged numbers ("3038" -> 30 38); typed stays exact.
+function toks(s, voice) {
+  const T = group ? tagsFor(group) : {tags:{}, dupNums:new Set()};
+  const J = voice && group ? jerseySet() : null;
+  const w = String(s||'').toUpperCase().replace(/[^0-9A-Z]+/g,' ').trim().split(' ').filter(Boolean);
+  const out = [];
+  for (let i = 0; i < w.length; i++) {
+    const m = w[i].match(/^(\d+)([A-Z]*)$/);
+    if (!m) { out.push(...rawNums(w[i])); continue; }
+    const pieces = J ? splitTok(String(parseInt(m[1],10)), J) : [String(parseInt(m[1],10))];
+    const last = pieces.pop();
+    let tag = m[2] ? tagOf(last, m[2], T) : '';
+    const nx = w[i+1] || '';
+    if (!m[2] && /^[A-Z]+$/.test(nx) && !(voice && FILLER.has(nx))) { tag = tagOf(last, nx, T) || tagOf(last, LETTER[nx.toLowerCase()], T); if (tag) i++; }
+    out.push(...pieces, tag || last);
+  }
+  return out;
+}
 // dictation glues numbers together ("30 38" -> "3038"). Split any token that is not a jersey in the group into jerseys that ARE (fewest pieces wins).
 function jerseySet() { return new Set(rosterFor(group).map(r => r.jersey)); }
 function splitTok(tok, J) {
@@ -282,14 +323,15 @@ function splitTok(tok, J) {
   go(0, []);
   return best || [tok];
 }
-function fixNums(list) { if (!group) return list; const J = jerseySet(); return list.flatMap(t => splitTok(t, J)); }
-function nums(s) { return [...new Set(rawNums(s))]; }            // typed / photo: exact numbers
-function numsVoice(s) { return [...new Set(fixNums(rawNums(s)))]; } // spoken: un-glue merged numbers
+function nums(s) { return [...new Set(toks(s, false))]; }       // typed / photo: exact numbers (+ tags)
+function numsVoice(s) { return [...new Set(toks(s, true))]; }   // spoken: un-glue merged numbers (+ tags)
 
 function rosterFor(g) { return DATA.roster.filter(r => r.group === g && r.jersey !== ''); }
 function matches(j) { return rosterFor(group).filter(r => r.jersey === j); }
 // resolve a jersey number in the current group -> {jersey, name, status}
 function resolve(t, j) {
+  const tg = tagsFor(group).tags[j];
+  if (tg) return {jersey:tg.jersey, name:tg.name, status:'ok'};
   const m = matches(j);
   if (!m.length) return {jersey:j, name:'', status:'unk'};
   if (m.length === 1) return {jersey:j, name:m[0].name, status:'ok'};
@@ -318,7 +360,7 @@ function preview() {
   let msg = '';
   if (!group) msg = 'Pick the group (A, B or C) first.';
   else if (dup.length) msg = `⚠️ #${dup.map(d=>d.jersey).join(', #')} is on both teams.`;
-  else if (pa.concat(pb).some(p => p.status === 'pick')) msg = '⚠️ Two kids share a number — tap the right name.';
+  else if (pa.concat(pb).some(p => p.status === 'pick')) { const need = new Set(pa.concat(pb).filter(p => p.status === 'pick').map(p => p.jersey)); const hint = Object.keys(tagsFor(group).tags).filter(k => need.has(tagsFor(group).tags[k].jersey)); msg = '⚠️ Two kids share a number — tap the right name' + (hint.length ? ` (or type ${hint.join(', ')})` : '') + '.'; }
   else if (sa === null || sb === null) msg = `${A}: ${pa.length} players · ${B}: ${pb.length} players. Enter the score.`;
   else if (sa > sb) msg = `<b>${A} wins ${sa}-${sb}.</b> ${A} players get <b>${sa+BONUS}</b> each (${sa}+10). ${B} players get <b>${sb}</b> each.`;
   else if (sb > sa) msg = `<b>${B} wins ${sb}-${sa}.</b> ${B} players get <b>${sb+BONUS}</b> each (${sb}+10). ${A} players get <b>${sa}</b> each.`;
