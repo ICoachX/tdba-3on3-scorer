@@ -121,6 +121,19 @@ tr.top td{font-weight:800}
 .shot img{width:96px;height:72px;object-fit:cover;border-radius:8px;border:2px solid var(--line)}
 .shot .st{font-size:14px;color:var(--mute);flex:1;min-width:120px}
 .shot .st b{color:var(--navy)}
+.undo.edit{color:var(--navy);margin-right:6px}
+.gbtns{display:flex;flex:0 0 auto}
+#editBar{background:var(--navy);color:#fff}
+#editBar .lbl{color:#fff;opacity:.85}
+#editBar .row{align-items:center;justify-content:space-between}
+#editBar button{border:2px solid #fff;background:#fff;color:var(--navy);border-radius:10px;padding:8px 14px;font-weight:800;font-size:15px}
+.wchips{display:flex;gap:8px}
+.wchips button{flex:1;border:2px solid var(--line);background:#fff;border-radius:12px;padding:12px 4px;font-size:16px;font-weight:800;color:var(--ink)}
+.wchips button.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.wnote{font-size:13px;color:var(--mute);margin-top:8px}
+.wnote button{border:0;background:none;color:var(--navy);font-weight:800;text-decoration:underline;padding:0;font-size:13px}
+.failbox{background:#fde8e8;color:#8a1216;border:2px solid var(--red);border-radius:12px;padding:12px;font-weight:700;margin-bottom:10px;font-size:15px}
+.shot .st button{border:2px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;font-weight:700;color:var(--red);margin-left:6px}
 .flash{animation:flash .5s 5;border-radius:14px}
 @keyframes flash{50%{box-shadow:0 0 0 4px var(--red)}}
 </style>
@@ -137,6 +150,10 @@ tr.top td{font-weight:800}
 <main>
 
 <section id="tab-score">
+  <div class="card" id="editBar" hidden>
+    <p class="lbl">✏️ Editing a saved game</p>
+    <div class="row"><div id="editWhat" style="font-weight:800"></div><button id="editCancel">Cancel</button></div>
+  </div>
   <div class="card">
     <p class="lbl">Group</p>
     <div class="chips" id="groupChips"></div>
@@ -177,11 +194,18 @@ tr.top td{font-weight:800}
     <div class="preview" id="preview">Pick the group, then jersey numbers and score.</div>
   </div>
 
+  <div class="card" id="winCard" hidden>
+    <p class="lbl">Who won</p>
+    <div class="wchips"><button data-win="A">Home</button><button data-win="Tie">Tie</button><button data-win="B">Guests</button></div>
+    <div class="wnote" id="winNote"></div>
+  </div>
+
   <div class="card">
     <p class="lbl">Coach</p>
     <input type="text" id="coach" placeholder="your name (remembered)" autocomplete="off">
   </div>
 
+  <div class="failbox" id="failBox" hidden></div>
   <button class="btn" id="save">SAVE GAME</button>
   <div class="foot">Everybody gets their team's score. Winning team gets +10 each. Tie = no bonus.</div>
 </section>
@@ -196,6 +220,7 @@ tr.top td{font-weight:800}
   <div class="sync" id="sync2"></div>
   <div class="gtabs" id="seasonTabs"></div>
   <div class="card"><div class="tblwrap" id="seasonBoard"></div></div>
+  <div class="card"><p class="lbl" id="seasonGamesLbl">Games</p><div id="seasonGames"></div></div>
 </section>
 
 <section id="tab-printtab" hidden>
@@ -212,7 +237,7 @@ tr.top td{font-weight:800}
 <div id="print"></div>
 <div id="listen" hidden><div class="hd"><span class="dot"></span><span id="listenTitle">LISTENING — talk now</span></div><div class="live" id="liveText"><span class="dim">Waiting for your voice…</span></div><button class="stop" id="stopBtn">DONE TALKING</button></div>
 <div class="toast" id="toast"></div>
-<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+<input type="file" id="camIn" accept="image/*" hidden>
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbw9myq61cJ4tjy3hIl5SobEluPGa1u7H5xI1XXmYqoBnav1UxxFQtsXr55NUwB84qAS/exec';
@@ -225,6 +250,7 @@ let team = {A:HOME, B:GUEST};
 let group = '';
 let picks = {A:{}, B:{}};   // jersey -> chosen name when duplicates
 let photos = {home:'', guest:'', both:''}; let gameId = '';
+let editing = null, prevGroup = '';   // editing = the saved game open on the score screen (Edit button)
 const newGameId = () => 'g'+Date.now()+Math.random().toString(36).slice(2,6);
 let seasonGroup = '';
 let lastSync = 0;
@@ -333,7 +359,7 @@ function resolve(t, j) {
   const tg = tagsFor(group).tags[j];
   if (tg) return {jersey:tg.jersey, name:tg.name, status:'ok'};
   const m = matches(j);
-  if (!m.length) return {jersey:j, name:'', status:'unk'};
+  if (!m.length) return {jersey:j, name:(editing && editing.names[j]) || '', status:'unk'};
   if (m.length === 1) return {jersey:j, name:m[0].name, status:'ok'};
   const chosen = picks[t][j];
   return {jersey:j, name: chosen || '', status: chosen ? 'ok' : 'pick', options: m.map(x => x.name)};
@@ -362,10 +388,15 @@ function preview() {
   else if (dup.length) msg = `⚠️ #${dup.map(d=>d.jersey).join(', #')} is on both teams.`;
   else if (pa.concat(pb).some(p => p.status === 'pick')) { const need = new Set(pa.concat(pb).filter(p => p.status === 'pick').map(p => p.jersey)); const hint = Object.keys(tagsFor(group).tags).filter(k => need.has(tagsFor(group).tags[k].jersey)); msg = '⚠️ Two kids share a number — tap the right name' + (hint.length ? ` (or type ${hint.join(', ')})` : '') + '.'; }
   else if (sa === null || sb === null) msg = `${A}: ${pa.length} players · ${B}: ${pb.length} players. Enter the score.`;
-  else if (sa > sb) msg = `<b>${A} wins ${sa}-${sb}.</b> ${A} players get <b>${sa+BONUS}</b> each (${sa}+10). ${B} players get <b>${sb}</b> each.`;
-  else if (sb > sa) msg = `<b>${B} wins ${sb}-${sa}.</b> ${B} players get <b>${sb+BONUS}</b> each (${sb}+10). ${A} players get <b>${sa}</b> each.`;
-  else msg = `<b>Tie ${sa}-${sb}.</b> Everybody gets <b>${sa}</b>. No bonus.`;
+  else {
+    const w = winSide(sa, sb), hand = editing && editing.winner ? ' (set by hand)' : '';
+    if (w === 'A') msg = `<b>${A} wins ${sa}-${sb}${hand}.</b> ${A} players get <b>${sa+BONUS}</b> each (${sa}+10). ${B} players get <b>${sb}</b> each.`;
+    else if (w === 'B') msg = `<b>${B} wins ${sb}-${sa}${hand}.</b> ${B} players get <b>${sb+BONUS}</b> each (${sb}+10). ${A} players get <b>${sa}</b> each.`;
+    else if (sa === sb) msg = `<b>Tie ${sa}-${sb}.</b> Everybody gets <b>${sa}</b>. No bonus.`;
+    else msg = `<b>Tie${hand}.</b> ${A} players get <b>${sa}</b> each. ${B} players get <b>${sb}</b> each. No bonus.`;
+  }
   $('#preview').innerHTML = msg;
+  if (editing) renderWin(sa, sb);
 }
 
 // ---------- save
@@ -377,6 +408,7 @@ $('#save').onclick = async () => {
   if (pa.some(x => pb.some(y => y.jersey === x.jersey && y.name === x.name))) return toast('Same kid on both teams', true);
   if (pa.concat(pb).some(p => p.status === 'pick')) return toast('Tap the right name for the shared number', true);
   if (isNaN(sa) || isNaN(sb)) return toast('Enter both scores', true);
+  if (editing) return saveEdit(pa, pb, sa, sb);
   const body = {action:'add', key:KEY, id: gameId || newGameId(), photos, date: todayStr(), group, teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa.map(p=>({jersey:p.jersey,name:p.name})), playersB:pb.map(p=>({jersey:p.jersey,name:p.name})), coach:$('#coach').value.trim()};
   $('#save').disabled = true; $('#save').textContent = 'SAVING…';
   try {
@@ -501,22 +533,34 @@ let shotSlot = '';
 function takeShot(slot) { if (needGroup()) return; shotSlot = slot; $('#camIn').value = ''; $('#camIn').click(); }
 $('#stepPhoto').onclick = () => takeShot('both');
 document.querySelectorAll('[data-shot]').forEach(b => b.onclick = () => takeShot(b.dataset.shot));
+// shot or picked from the camera roll: same path. Any size, any format the phone can open -> a 1280px JPEG before upload.
 function shrink(file) {
   return new Promise((res, rej) => {
+    if (file.type && !/^image\//.test(file.type)) return rej(new Error('notimage'));
     const img = new Image(); const url = URL.createObjectURL(file);
-    img.onload = () => { const m = 1280, k = Math.min(1, m / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.82)); };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    const t = setTimeout(() => { URL.revokeObjectURL(url); rej(new Error('timeout')); }, 30000);
+    img.onload = () => {
+      clearTimeout(t);
+      try { const m = 1280, k = Math.min(1, m / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); const out = c.toDataURL('image/jpeg', 0.82); if (!/^data:image\/jpeg;base64,/.test(out) || out.length < 1000) return rej(new Error('encode')); res(out); }
+      catch (e) { URL.revokeObjectURL(url); rej(e); }
+    };
+    img.onerror = () => { clearTimeout(t); URL.revokeObjectURL(url); rej(new Error('bad image')); };
     img.src = url;
   });
 }
+function photoErr(f, e) {
+  if (e && e.message === 'notimage') return 'That file is not a photo. Pick a picture.';
+  if (/hei[cf]/i.test(f.type || '') || /\.hei[cf]$/i.test(f.name || '')) return 'This phone could not open that HEIC photo. Take a new picture, or pick a different one.';
+  return 'Could not open that photo. Take a new picture, or pick a different one.';
+}
 $('#camIn').addEventListener('change', async () => {
   const f = $('#camIn').files[0]; if (!f) return;
-  const slot = shotSlot, box = $('#shot' + (slot === 'home' ? 'Home' : slot === 'guest' ? 'Guest' : 'Both'));
-  let data; try { data = await shrink(f); } catch (e) { toast('Could not read that photo', true); return; }
+  const slot = shotSlot, box = shotBox(slot);
+  let data; try { data = await shrink(f); } catch (e) { const msg = photoErr(f, e); toast(msg, true); if (editing) showPhotoSlot(slot, msg); else box.innerHTML = `<div class="st" style="color:var(--red)">${esc(msg)}</div>`; return; }
   box.innerHTML = `<img src="${data}"><div class="st"><b>Saving photo…</b></div>`;
   if (!gameId) gameId = newGameId();
   try {
-    const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'photo', key:KEY, id:gameId, slot, date:todayStr(), image:data})}).then(x => x.json());
+    const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'photo', key:KEY, id:gameId, slot, date: editing ? editing.date : todayStr(), image:data})}).then(x => x.json());
     if (!r.ok) throw new Error(r.error || 'save failed');
     photos[slot] = r.url;
     let st = '';
@@ -529,9 +573,113 @@ $('#camIn').addEventListener('change', async () => {
       toast(`Read ${h.length + g.length} jersey numbers from the photo`);
     } else if (r.vision === 'off') { st = '<b>Photo saved.</b> Number reading is not switched on yet — type or say the numbers.'; }
     else { st = '<b>Photo saved.</b> Could not read numbers this time — type or say them.'; }
-    box.innerHTML = `<img src="${data}"><div class="st">${st}</div>`;
+    box.innerHTML = `<img src="${data}"><div class="st">${st}${editing ? ' <b>Tap SAVE CHANGES to keep it on this game.</b>' : ''}</div>`;
   } catch (e) { box.innerHTML = `<img src="${data}"><div class="st" style="color:var(--red)">Photo did not save. Check signal and try again.</div>`; }
 });
+
+// ---------- edit a saved game: the score screen, filled in with that game. SAVE CHANGES posts 'update' (same row, same id, same time).
+const shotBox = s => $('#shot' + (s === 'home' ? 'Home' : s === 'guest' ? 'Guest' : 'Both'));
+const dateShort = ds => new Date(ds + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+const autoWin = (sa, sb) => sa > sb ? 'A' : (sb > sa ? 'B' : 'Tie');
+function winSide(sa, sb) { return (editing && editing.winner) || autoWin(sa, sb); }
+function winOf(g) { return g.winner === 'Tie' ? 'Tie' : g.winner === g.teamA ? 'A' : g.winner === g.teamB ? 'B' : autoWin(g.scoreA, g.scoreB); }
+function gameRow(g, from) {
+  const w = winOf(g);
+  return `
+    <div class="game"><div>
+      <div class="sc"><span class="${w==='A'?'w':''}">${esc(g.teamA)} ${g.scoreA}</span> – <span class="${w==='B'?'w':''}">${esc(g.teamB)} ${g.scoreB}</span> <span style="font-size:13px;color:var(--mute)">Group ${esc(g.group)}</span> ${g.photos && (g.photos.home||g.photos.guest||g.photos.both) ? ['home','guest','both'].filter(k=>g.photos[k]).map(k=>`<a href="${esc(g.photos[k])}" target="_blank" style="font-size:13px;text-decoration:none">📷</a>`).join('') : ''}</div>
+      <div class="who">${from === 'season' ? esc(dateShort(g.date)) + ' · ' : ''}${esc(g.time)}${g.coach?' · '+esc(g.coach):''} · ${esc(g.teamA)}: ${g.playersA.map(p=>p.jersey).join(' ')} · ${esc(g.teamB)}: ${g.playersB.map(p=>p.jersey).join(' ')}</div>
+    </div><div class="gbtns"><button class="undo edit" data-edit="${esc(g.id)}" data-from="${from}">Edit</button><button class="undo" data-del="${g.id}">Undo</button></div></div>`;
+}
+// a saved player -> what goes in the number box: the tag when the number is shared ("133J"), else the plain number
+function prefill(list, t) {
+  const T = tagsFor(group);
+  return list.map(p => {
+    const m = matches(p.jersey); if (m.length < 2) return p.jersey;
+    const hit = m.find(r => norm(r.name) === norm(p.name)); if (!hit) return p.jersey;
+    const tag = Object.keys(T.tags).find(k => T.tags[k] === hit); if (tag) return tag;
+    picks[t][p.jersey] = hit.name; return p.jersey;
+  }).join(' ');
+}
+function formDirty() { return !editing && (['pA','pB','sA','sB'].some(i => $('#'+i).value.trim() !== '') || !!(photos.home || photos.guest || photos.both)); }
+function startEdit(id, from) {
+  const g = DATA.games.find(x => x.id === id); if (!g) return toast('That game is gone. Refreshing.', true), load(true);
+  if (formDirty() && !confirm('You have a game typed in that is not saved yet. Clear it and edit this one?')) return;
+  if (!editing) prevGroup = group;
+  const w = winOf(g);
+  editing = {id:g.id, date:g.date, from: from || 'today', winner: w !== autoWin(g.scoreA, g.scoreB) ? w : null, names:{}, orig:{home:g.photos.home||'', guest:g.photos.guest||'', both:g.photos.both||''}};
+  g.playersA.concat(g.playersB).forEach(p => { if (p.name) editing.names[p.jersey] = p.name; });
+  picks = {A:{}, B:{}}; group = g.group; renderGroupChips(); $('#hweek').textContent = 'Group ' + g.group + ' · Week ' + weekOf(g.date);
+  $('#pA').value = prefill(g.playersA, 'A'); $('#pB').value = prefill(g.playersB, 'B');
+  $('#sA').value = g.scoreA; $('#sB').value = g.scoreB;
+  gameId = g.id; photos = Object.assign({}, editing.orig);
+  ['home','guest','both'].forEach(s => showPhotoSlot(s));
+  $('#editWhat').textContent = `Group ${g.group} · ${dateShort(g.date)} ${g.time}${g.coach ? ' · ' + g.coach : ''}`;
+  $('#editBar').hidden = false; $('#winCard').hidden = false; $('#failBox').hidden = true;
+  $('#save').textContent = 'SAVE CHANGES'; $('#save').disabled = false;
+  $('#heard').innerHTML = 'Fix the numbers, score, winner or photos. Then SAVE CHANGES.';
+  $('#step1').classList.remove('done'); $('#step2').classList.remove('done');
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x.dataset.tab === 'score'));
+  ['score','today','season','printtab'].forEach(t => $('#tab-'+t).hidden = (t !== 'score'));
+  preview(); window.scrollTo(0, 0);
+}
+function exitEdit() {
+  editing = null;
+  $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; picks = {A:{},B:{}}; photos = {home:'',guest:'',both:''}; gameId = ''; ['shotHome','shotGuest','shotBoth'].forEach(i => $('#'+i).innerHTML = '');
+  $('#editBar').hidden = true; $('#winCard').hidden = true; $('#failBox').hidden = true; $('#save').textContent = 'SAVE GAME'; $('#save').disabled = false;
+  $('#heard').innerHTML = 'Home = white jerseys. Guests = dark jerseys. You can also type below.';
+  if (prevGroup && DATA.groups.includes(prevGroup)) setGroup(prevGroup); else { renderGroupChips(); preview(); }
+  prevGroup = '';
+}
+function goTab(t) { const nb = document.querySelector(`nav button[data-tab="${t}"]`); if (nb) nb.click(); }
+$('#editCancel').onclick = () => { const back = editing ? editing.from : 'today'; exitEdit(); goTab(back); };
+// photo controls on the edit screen: keep, remove, or replace (the camera buttons replace)
+function showPhotoSlot(slot, note) {
+  if (!editing) return;
+  const box = shotBox(slot), url = photos[slot], orig = editing.orig[slot];
+  let h = note ? `<div class="st" style="color:var(--red);flex-basis:100%">${esc(note)}</div>` : '';
+  if (url) h += `<div class="st"><b>${url === orig ? 'Photo on this game.' : 'New photo. Tap SAVE CHANGES to keep it.'}</b> <a href="${esc(url)}" target="_blank">Open</a> <button data-rm="${slot}">Remove</button><br>To replace it, tap the camera button.</div>`;
+  else if (orig) h += `<div class="st"><b>Photo will be removed</b> when you tap SAVE CHANGES. <button data-keep="${slot}">Keep it</button></div>`;
+  box.innerHTML = h;
+  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { photos[slot] = ''; showPhotoSlot(slot); });
+  box.querySelectorAll('[data-keep]').forEach(b => b.onclick = () => { photos[slot] = orig; showPhotoSlot(slot); });
+}
+// who won: follows the score unless the coach taps Home / Tie / Guests
+function renderWin(sa, sb) {
+  const have = sa !== null && sb !== null && !isNaN(sa) && !isNaN(sb);
+  const w = editing.winner || (have ? autoWin(sa, sb) : '');
+  document.querySelectorAll('[data-win]').forEach(b => b.classList.toggle('on', b.dataset.win === w));
+  $('#winNote').innerHTML = editing.winner ? 'Set by hand. The score will not change it. <button id="winAuto">Follow the score again</button>' : 'Follows the score. Tap one to set it by hand.';
+  const a = $('#winAuto'); if (a) a.onclick = () => { editing.winner = null; preview(); };
+}
+document.querySelectorAll('[data-win]').forEach(b => b.onclick = () => { if (!editing) return; editing.winner = b.dataset.win; preview(); });
+function sameAsSaved(b) {
+  const g = DATA.games.find(x => x.id === b.id); if (!g) return false;
+  const js = l => l.map(p => p.jersey + ' ' + p.name).join(',');
+  const w = b.winner ? (b.winner === 'A' ? g.teamA : b.winner === 'B' ? g.teamB : 'Tie') : g.winner;
+  return g.scoreA === b.scoreA && g.scoreB === b.scoreB && g.group === b.group && g.winner === w && js(g.playersA) === js(b.playersA) && js(g.playersB) === js(b.playersB) && ['home','guest','both'].every(k => (g.photos[k]||'') === (b.photos[k]||''));
+}
+// one call; on any doubt read the game back. A failed save leaves the old game untouched and the edit on screen.
+async function saveEdit(pa, pb, sa, sb) {
+  const ed = editing;
+  const body = {action:'update', key:KEY, id:ed.id, group, teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa.map(p=>({jersey:p.jersey,name:p.name})), playersB:pb.map(p=>({jersey:p.jersey,name:p.name})), photos:{home:photos.home||'', guest:photos.guest||'', both:photos.both||''}};
+  if (ed.winner) body.winner = ed.winner;
+  $('#save').disabled = true; $('#save').textContent = 'SAVING…'; $('#failBox').hidden = true;
+  let r = null;
+  try { r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)}).then(x => x.json()); } catch (e) { r = null; }
+  if (r && r.error === 'auth') { $('#save').disabled = false; $('#save').textContent = 'SAVE CHANGES'; showGate('Wrong passphrase'); return; }
+  if (!r) { const t0 = lastSync; await load(true); if (lastSync > t0 && sameAsSaved(body)) r = {ok:true}; }
+  if (editing !== ed) return;
+  if (r && r.ok) {
+    boards(); toast(`Game updated. Home ${sa} – Guests ${sb}`);
+    exitEdit(); await load(true); goTab(ed.from);
+    return;
+  }
+  const why = r && r.error === 'not found' ? 'That game is not on the sheet any more (someone may have tapped Undo).' : 'No signal, or the sheet did not answer.';
+  $('#failBox').textContent = `Your changes did NOT save. ${why} The old game is still there, untouched. Your changes are still on this screen. Tap RETRY SAVE.`;
+  $('#failBox').hidden = false; $('#save').disabled = false; $('#save').textContent = 'RETRY SAVE';
+  $('#failBox').scrollIntoView({block:'center'});
+}
 
 // ---------- data
 async function load(force) {
@@ -578,17 +726,17 @@ function render() {
   $('#sync1').textContent = syncTxt; $('#sync2').textContent = syncTxt;
   // today
   $('#champToday').innerHTML = DATA.groups.map(g => { const b = boardToday(g); if (!b.length) return ''; return `<div class="champ"><div class="sub">GROUP ${g} · TODAY'S CHAMP</div><div class="big">${esc(label(b[0]))}</div><div class="sub">${b[0].pts} points · ${b[0].w} wins in ${b[0].g} games</div></div><div class="card"><p class="lbl">Group ${g} today</p>${todayTable(b)}</div>`; }).join('') || '<div class="card"><div class="empty">No games today yet</div></div>';
-  $('#todayGames').innerHTML = tg.length ? tg.slice().reverse().map(g => `
-    <div class="game"><div>
-      <div class="sc"><span class="${g.scoreA>g.scoreB?'w':''}">${esc(g.teamA)} ${g.scoreA}</span> – <span class="${g.scoreB>g.scoreA?'w':''}">${esc(g.teamB)} ${g.scoreB}</span> <span style="font-size:13px;color:var(--mute)">Group ${esc(g.group)}</span> ${g.photos && (g.photos.home||g.photos.guest||g.photos.both) ? ['home','guest','both'].filter(k=>g.photos[k]).map(k=>`<a href="${esc(g.photos[k])}" target="_blank" style="font-size:13px;text-decoration:none">📷</a>`).join('') : ''}</div>
-      <div class="who">${esc(g.time)}${g.coach?' · '+esc(g.coach):''} · ${esc(g.teamA)}: ${g.playersA.map(p=>p.jersey).join(' ')} · ${esc(g.teamB)}: ${g.playersB.map(p=>p.jersey).join(' ')}</div>
-    </div><button class="undo" data-del="${g.id}">Undo</button></div>`).join('') : '<div class="empty">No games today yet</div>';
-  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b));
+  $('#todayGames').innerHTML = tg.length ? tg.slice().reverse().map(g => gameRow(g, 'today')).join('') : '<div class="empty">No games today yet</div>';
   // season
   if (!seasonGroup) seasonGroup = group || DATA.groups[0];
   $('#seasonTabs').innerHTML = DATA.groups.map(g => `<button class="${g===seasonGroup?'on':''}" data-sg="${g}">Group ${g}</button>`).join('');
   document.querySelectorAll('[data-sg]').forEach(b => b.onclick = () => { seasonGroup = b.dataset.sg; render(); });
   $('#seasonBoard').innerHTML = seasonTable(boardSeason(seasonGroup));
+  const sg = DATA.games.filter(g => g.group === seasonGroup).slice().reverse();
+  $('#seasonGamesLbl').textContent = `Group ${seasonGroup} games`;
+  $('#seasonGames').innerHTML = sg.length ? sg.map(g => gameRow(g, 'season')).join('') : '<div class="empty">No games in this group yet</div>';
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => del(b));
+  document.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => startEdit(b.dataset.edit, b.dataset.from));
   // print: one page per group
   const dateNice = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   $('#print').innerHTML = DATA.groups.map(g => { const tb = boardToday(g), sb = boardSeason(g); const n = tg.filter(x => x.group === g).length; return `<div class="pg"><h1>TDBA 3on3 League — Group ${g}</h1><div>${dateNice} · Week ${weekOf(t)} · ${n} games today · Win = +10 bonus</div>
