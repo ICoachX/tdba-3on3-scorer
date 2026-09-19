@@ -33,6 +33,7 @@ input:focus{outline:none;border-color:var(--navy)}
 .names{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:6px}
 .pill{border-radius:8px;padding:6px 10px;font-size:14px;font-weight:700;background:#e9f7ee;color:#14532d;border:2px solid transparent}
 .pill.unk{background:#fff4e5;color:var(--warn)}
+.pill.guest{border-style:dashed;border-color:#14532d}
 .pill.pick{background:#fff;border-color:var(--red);color:var(--red)}
 .pill.pick.on{background:var(--navy);border-color:var(--navy);color:#fff}
 .scores{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
@@ -167,19 +168,19 @@ tr.top td{font-weight:800}
       <button class="stepbtn photo" id="stepPhoto"><span class="n">📷</span><span><span class="t">Or: one photo, both teams</span><br><span class="s">Line them up side by side. White left, dark right. Tap, take the picture.</span></span></button>
     </div>
     <div class="shot" id="shotBoth"></div>
-    <div class="heardbox" id="heard">Home = white jerseys. Guests = dark jerseys. You can also type below.</div>
+    <div class="heardbox" id="heard">Home = white jerseys. Guests = dark jerseys. You can also type numbers or names below.</div>
   </div>
 
   <div class="card">
     <div class="teamhead"><span class="jersey white"></span><p class="lbl" style="margin:0">Home — white jerseys</p></div>
-    <div class="row"><input type="text" id="pA" placeholder="jersey numbers  5 30 36" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"><button class="mic" data-mic="pA" title="speak numbers">🎤</button></div>
+    <div class="row"><input type="text" id="pA" placeholder="numbers or names  5 30 Noble" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"><button class="mic" data-mic="pA" title="speak numbers">🎤</button></div>
     <div class="names" id="nmA"></div>
     <button class="photobtn" data-shot="home">📷 Take picture of the Home team</button><div class="shot" id="shotHome"></div>
   </div>
 
   <div class="card">
     <div class="teamhead"><span class="jersey dark"></span><p class="lbl" style="margin:0">Guests — dark jerseys</p></div>
-    <div class="row"><input type="text" id="pB" placeholder="jersey numbers  22 37 41" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"><button class="mic" data-mic="pB" title="speak numbers">🎤</button></div>
+    <div class="row"><input type="text" id="pB" placeholder="numbers or names  22 37 Jerome" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"><button class="mic" data-mic="pB" title="speak numbers">🎤</button></div>
     <div class="names" id="nmB"></div>
     <button class="photobtn" data-shot="guest">📷 Take picture of the Guest team</button><div class="shot" id="shotGuest"></div>
   </div>
@@ -191,7 +192,7 @@ tr.top td{font-weight:800}
       <div class="vs">vs</div>
       <div class="scorebox"><div class="team" id="nB">GUESTS</div><input type="number" id="sB" inputmode="numeric" placeholder="0"><div class="pm"><button data-pm="sB:-1">−</button><button data-pm="sB:1">+</button></div></div>
     </div>
-    <div class="preview" id="preview">Pick the group, then jersey numbers and score.</div>
+    <div class="preview" id="preview">Pick the group, then the players (numbers or names) and the score.</div>
   </div>
 
   <div class="card" id="winCard" hidden>
@@ -248,8 +249,8 @@ const BONUS = 10;
 let DATA = {games:[], points:[], roster:[], groups:['A','B','C'], seasonStart:'2026-08-22'};
 let team = {A:HOME, B:GUEST};
 let group = '';
-let picks = {A:{}, B:{}};   // jersey -> chosen name when duplicates
 let photos = {home:'', guest:'', both:''}; let gameId = '';
+let guests = {A:{}, B:{}};   // per team: norm(name) -> {jersey, name, from, guest:true} — kids added as guests from another group (or off every roster)
 let editing = null, prevGroup = '';   // editing = the saved game open on the score screen (Edit button)
 const newGameId = () => 'g'+Date.now()+Math.random().toString(36).slice(2,6);
 let seasonGroup = '';
@@ -295,7 +296,7 @@ document.querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { const [i
 ['pA','pB','sA','sB'].forEach(id => $('#'+id).addEventListener('input', preview));
 function rawNums(s) { return String(s||'').replace(/[^0-9\s,]/g,' ').split(/[\s,]+/).filter(Boolean).map(x => String(parseInt(x,10))); }
 // jersey-letter tags: when kids in one group share a number, each gets number + the shortest start of their first name
-// that no other kid on that number has ("5T", "30JAM"). Built from the loaded roster every time. Input only — boards show plain numbers.
+// that no other kid on that number has ("5T", "30JAM", "133N", "133J"). Built from the loaded roster every time. Input only — boards show plain numbers.
 const firstName = n => String(n||'').trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g,'');
 function tagsFor(g) {
   const by = {}, tags = {}, dupNums = new Set();
@@ -307,34 +308,86 @@ function tagsFor(g) {
   });
   return {tags, dupNums};
 }
-// letters after a shared number -> that kid's tag, or '' when they name nobody or more than one ("30J" stays a bare 30).
-// Accepts the tag, more of the name ("30JAMAL", "30 Jade"), or a spoken letter ("5 tee").
 const LETTER = {bee:'B',be:'B',see:'C',sea:'C',cee:'C',dee:'D',gee:'G',jay:'J',kay:'K',el:'L',elle:'L',em:'M',en:'N',pee:'P',tee:'T',tea:'T',vee:'V',zee:'Z'};
-const FILLER = new Set(['A','AN','AND','THE','THEN','PLUS','WITH','TEAM','PLAYER','PLAYERS','NUMBER','NUMBERS','ALSO','TO','TOO','ON','IS']);
-function tagOf(j, w, T) {
-  if (!w || !T.dupNums.has(j)) return '';
-  const hit = rosterFor(group).filter(r => r.jersey === j && firstName(r.name).startsWith(w));
-  if (hit.length !== 1) return '';
-  return Object.keys(T.tags).find(k => T.tags[k] === hit[0]) || '';
+const FILLER = new Set(['A','AN','AND','THE','THEN','PLUS','WITH','TEAM','PLAYER','PLAYERS','NUMBER','NUMBERS','ALSO','TO','TOO','ON','IS','UM','UH']);
+// names: a typed word matches a kid when it starts any word of the kid's name ("jer" and "lieb" both find Jerome Lieber).
+// several words must each start a later word of the name, in order ("jerome lieber", "j lieber").
+function nameHit(r, ws) { const nw = norm(r.name).split(' ').filter(Boolean); let k = 0; for (const w of ws) { const lw = String(w).toLowerCase(); let i = k; while (i < nw.length && !nw[i].startsWith(lw)) i++; if (i === nw.length) return false; k = i + 1; } return true; }
+function nameHits(ws) { return rosterFor(group).filter(r => nameHit(r, ws)); }
+// letters right after a SHARED number name one kid on that number, or nobody ("133N", "133 Noble", "133 Lieber", "5 tee"). "30J" with two J kids on 30 stays a bare 30.
+function kidOnNumber(j, w, T) {
+  if (!w || !T.dupNums.has(j)) return null;
+  const hit = rosterFor(group).filter(r => r.jersey === j && nameHit(r, [w]));
+  return hit.length === 1 ? hit[0] : null;
 }
-// "5 30 36", "5T 30jam", "5 t", "30 jam" -> ['5','30JAM',...]. Voice also un-glues merged numbers ("3038" -> 30 38); typed stays exact.
-function toks(s, voice) {
+// a roster kid -> the shortest thing that names ONLY them in the box: the tag when the number is shared, else the number, else the full name
+function tokenFor(r) {
+  if (r.guest) return (r.jersey ? r.jersey + ' ' : '') + r.name;
+  const T = tagsFor(group);
+  const tag = Object.keys(T.tags).find(k => T.tags[k] === r); if (tag) return tag;
+  return matches(r.jersey).length === 1 ? r.jersey : r.name;
+}
+// The box, read as player slots in order. Numbers, tags, names and partial names all work in one box.
+// Slots are de-duped by WHO the kid is (roster identity), never by number: two kids on 133 are two slots.
+// slot = {jersey, name, status:'ok'|'pick'|'unk'|'noname', text, i, row?, options?, dup?}. Voice also un-glues merged numbers ("3038" -> 30 38); typed stays exact.
+function parseBox(s, voice, t) {
+  const G = (t && guests[t]) ? Object.values(guests[t]) : [];
   const T = group ? tagsFor(group) : {tags:{}, dupNums:new Set()};
   const J = voice && group ? jerseySet() : null;
-  const w = String(s||'').toUpperCase().replace(/[^0-9A-Z]+/g,' ').trim().split(' ').filter(Boolean);
-  const out = [];
-  for (let i = 0; i < w.length; i++) {
-    const m = w[i].match(/^(\d+)([A-Z]*)$/);
-    if (!m) { out.push(...rawNums(w[i])); continue; }
-    const pieces = J ? splitTok(String(parseInt(m[1],10)), J) : [String(parseInt(m[1],10))];
-    const last = pieces.pop();
-    let tag = m[2] ? tagOf(last, m[2], T) : '';
-    const nx = w[i+1] || '';
-    if (!m[2] && /^[A-Z]+$/.test(nx) && !(voice && FILLER.has(nx))) { tag = tagOf(last, nx, T) || tagOf(last, LETTER[nx.toLowerCase()], T); if (tag) i++; }
-    out.push(...pieces, tag || last);
+  const words = String(s||'').match(/[0-9A-Za-z]+/g) || [];
+  const W = words.map(w => w.toUpperCase());
+  const slots = [];
+  const numSlot = (j, text, row) => {
+    if (row) return {jersey:row.jersey, name:row.name, status:'ok', text, row};
+    const m = matches(j);
+    if (!m.length) return {jersey:j, name:(editing && editing.names[j]) || '', status:'unk', text};
+    if (m.length === 1) return {jersey:j, name:m[0].name, status:'ok', text, row:m[0]};
+    return {jersey:j, name:'', status:'pick', text, options:m};
+  };
+  const isWord = w => /^[A-Z]+$/.test(w) && !FILLER.has(w);
+  for (let i = 0; i < W.length; i++) {
+    const m = W[i].match(/^(\d+)([A-Z]*)$/);
+    if (m) {
+      const pieces = J ? splitTok(String(parseInt(m[1],10)), J) : [String(parseInt(m[1],10))];
+      const last = pieces.pop();
+      pieces.forEach(j => slots.push(numSlot(j, j, null)));
+      let row = m[2] ? kidOnNumber(last, m[2], T) : null, text = words[i];
+      const nx = W[i+1] || '';
+      if (!m[2] && isWord(nx)) { row = kidOnNumber(last, nx, T) || kidOnNumber(last, LETTER[nx.toLowerCase()] || '', T); if (row) { text += ' ' + words[i+1]; i++; } }
+      slots.push(numSlot(last, text, row));
+      continue;
+    }
+    if (!isWord(W[i])) continue;
+    // a name: the group's roster first, then this team's guests. Longest run of words that still names somebody wins.
+    let hits = null, j = i;
+    for (let k = i; k < W.length && isWord(W[k]); k++) { const ws = W.slice(i, k+1); const h = nameHits(ws).concat(G.filter(g => nameHit(g, ws))); if (!h.length) break; hits = h; j = k; }
+    if (!hits) {
+      // nobody by that name here. Typed: keep the whole run of words as one slot the coach can add as a guest ("45 Sam" keeps the 45). Spoken: drop it.
+      while (j + 1 < W.length && isWord(W[j+1])) j++;
+      const text = words.slice(i, j+1).join(' ');
+      const prev = slots[slots.length-1];
+      if (!voice) { if (prev && prev.status === 'unk' && !prev.name) { prev.status = 'noname'; prev.name = text; prev.text += ' ' + text; } else slots.push({jersey:'', name:text, status:'noname', text}); }
+      i = j; continue;
+    }
+    let text = words.slice(i, j+1).join(' ');
+    if (hits.length === 1) {
+      const prev = slots[slots.length-1];
+      if (prev && prev.status === 'unk' && prev.jersey === hits[0].jersey) { text = prev.text + ' ' + text; slots.pop(); }   // "45 Sam" is one kid, not #45 plus Sam
+      slots.push({jersey:hits[0].jersey, name:hits[0].name, status:'ok', text, row:hits[0], guest:!!hits[0].guest, from:hits[0].from || ''});
+    }
+    else slots.push({jersey:'', name:'', status:'pick', text, options:hits.slice(0, 12)});
+    i = j;
   }
-  return out;
+  const seen = new Set();
+  slots.forEach((p, i) => { p.i = i; const k = p.row ? 'r:' + p.row.jersey + '|' + norm(p.row.name) : (p.status === 'unk' ? '#' + p.jersey : ''); if (k && seen.has(k)) p.dup = true; if (k) seen.add(k); });
+  return slots;
 }
+// slots -> what to write back into a box (voice and photo): one clean token per kid, in order
+function tokensOf(slots) { return slots.filter(p => !p.dup && p.status !== 'noname').map(p => p.row ? tokenFor(p.row) : (p.jersey || p.text)); }
+// what a saved game carries for a slot: guests keep their name plus a note saying where they came from; a guest with no number gets '?'
+function outPlayer(p) { return {jersey: p.jersey || '?', name: p.guest ? p.name + (p.from ? ' (guest from Group ' + p.from + ')' : ' (guest)') : p.name}; }
+// a saved name -> [base name, guest note group] when it carries the guest note
+function guestNote(name) { const m = String(name||'').match(/^(.*?)\s*\(guest(?: from group ([A-Z]))?\)$/i); return m ? [m[1], (m[2] || '').toUpperCase()] : null; }
 // dictation glues numbers together ("30 38" -> "3038"). Split any token that is not a jersey in the group into jerseys that ARE (fewest pieces wins).
 function jerseySet() { return new Set(rosterFor(group).map(r => r.jersey)); }
 function splitTok(tok, J) {
@@ -349,44 +402,55 @@ function splitTok(tok, J) {
   go(0, []);
   return best || [tok];
 }
-function nums(s) { return [...new Set(toks(s, false))]; }       // typed / photo: exact numbers (+ tags)
-function numsVoice(s) { return [...new Set(toks(s, true))]; }   // spoken: un-glue merged numbers (+ tags)
+function nums(s, t) { return tokensOf(parseBox(s, false, t)); }       // typed / photo: exact numbers (+ tags, names)
+function numsVoice(s, t) { return tokensOf(parseBox(s, true, t)); }   // spoken: un-glue merged numbers (+ tags, names)
 
 function rosterFor(g) { return DATA.roster.filter(r => r.group === g && r.jersey !== ''); }
 function matches(j) { return rosterFor(group).filter(r => r.jersey === j); }
-// resolve a jersey number in the current group -> {jersey, name, status}
-function resolve(t, j) {
-  const tg = tagsFor(group).tags[j];
-  if (tg) return {jersey:tg.jersey, name:tg.name, status:'ok'};
-  const m = matches(j);
-  if (!m.length) return {jersey:j, name:(editing && editing.names[j]) || '', status:'unk'};
-  if (m.length === 1) return {jersey:j, name:m[0].name, status:'ok'};
-  const chosen = picks[t][j];
-  return {jersey:j, name: chosen || '', status: chosen ? 'ok' : 'pick', options: m.map(x => x.name)};
+function playersOf(t) { return parseBox($('#p'+t).value, false, t).filter(p => !p.dup); }
+// a tapped pill: that kid's token replaces the typed word(s) it came from, right where they were in the box
+function pickRow(t, i, r) {
+  const slots = parseBox($('#p'+t).value, false, t);
+  $('#p'+t).value = slots.map(p => p.i === i ? tokenFor(r) : p.text).join(' ');
+  preview();
 }
-function playersOf(t) { return nums($('#p'+t).value).map(j => resolve(t, j)); }
+// a kid from another group, or off every roster, plays on this team today. Saved with a guest note; scores like everybody else on this group's board.
+function addGuest(t, i, g) { guests[t][norm(g.name)] = {jersey:g.jersey || '', name:g.name, from:g.from || '', guest:true}; pickRow(t, i, guests[t][norm(g.name)]); }
+const titleCase = s => String(s||'').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 function renderNames(t) {
   const box = $('#nm'+t); box.innerHTML = '';
   if (!group) { box.innerHTML = '<span class="pill unk">Pick a group first</span>'; return; }
+  const pill = (cls, text, onclick) => { const el = document.createElement(onclick ? 'button' : 'span'); el.className = 'pill' + (cls ? ' ' + cls : ''); el.textContent = text; if (onclick) el.onclick = onclick; box.appendChild(el); };
   playersOf(t).forEach(p => {
     if (p.status === 'pick') {
-      p.options.forEach(n => { const el = document.createElement('button'); el.className = 'pill pick'; el.textContent = '#' + p.jersey + ' ' + n + '?'; el.onclick = () => { picks[t][p.jersey] = n; preview(); }; box.appendChild(el); });
+      p.options.forEach(r => pill('pick', '#' + r.jersey + ' ' + r.name + (r.guest ? ' (guest)' : '') + '?', () => pickRow(t, p.i, r)));
+    } else if (p.status === 'noname') {
+      const ws = p.name.toUpperCase().split(' ');
+      pill('unk', '"' + p.name + '" — nobody in Group ' + group);
+      DATA.roster.filter(r => r.group && r.group !== group && nameHit(r, ws)).slice(0, 6).forEach(r => pill('pick', '+ #' + r.jersey + ' ' + r.name + ' (Group ' + r.group + ') as guest', () => addGuest(t, p.i, {jersey:r.jersey, name:r.name, from:r.group})));
+      pill('pick', '+ ' + (p.jersey ? '#' + p.jersey + ' ' : '') + titleCase(p.name) + ' as guest (not on any roster)', () => addGuest(t, p.i, {jersey:p.jersey, name:titleCase(p.name), from:''}));
+    } else if (p.guest) {
+      pill('guest', (p.jersey ? '#' + p.jersey + ' ' : '') + p.name + ' · guest' + (p.from ? ' from Group ' + p.from : ''));
     } else {
-      const el = document.createElement('span'); el.className = 'pill' + (p.status === 'unk' ? ' unk' : ''); el.textContent = '#' + p.jersey + ' ' + (p.name || 'not on roster'); box.appendChild(el);
+      pill(p.status === 'unk' ? 'unk' : '', '#' + p.jersey + ' ' + (p.name || 'not on roster'));
     }
   });
 }
 
+// the same kid listed on both teams (never a half-typed slot)
+const sameKid = (x, y) => x.status !== 'pick' && x.status !== 'noname' && y.status !== 'pick' && y.status !== 'noname' && y.jersey === x.jersey && y.name === x.name;
 function preview() {
   renderNames('A'); renderNames('B');
   const pa = playersOf('A'), pb = playersOf('B');
   const sa = $('#sA').value === '' ? null : parseInt($('#sA').value), sb = $('#sB').value === '' ? null : parseInt($('#sB').value);
   const A = 'Home (white)', B = 'Guests (dark)';
-  const dup = pa.filter(x => pb.some(y => y.jersey === x.jersey && (y.name === x.name)));
+  const dup = pa.filter(x => pb.some(y => sameKid(x, y)));
+  const all = pa.concat(pb), noname = all.find(p => p.status === 'noname');
   let msg = '';
   if (!group) msg = 'Pick the group (A, B or C) first.';
   else if (dup.length) msg = `⚠️ #${dup.map(d=>d.jersey).join(', #')} is on both teams.`;
-  else if (pa.concat(pb).some(p => p.status === 'pick')) { const need = new Set(pa.concat(pb).filter(p => p.status === 'pick').map(p => p.jersey)); const hint = Object.keys(tagsFor(group).tags).filter(k => need.has(tagsFor(group).tags[k].jersey)); msg = '⚠️ Two kids share a number — tap the right name' + (hint.length ? ` (or type ${hint.join(', ')})` : '') + '.'; }
+  else if (noname) msg = `⚠️ Nobody in Group ${group} is called "${esc(noname.name)}". Fix the spelling, or tap "as guest" under the box.`;
+  else if (all.some(p => p.status === 'pick')) { const need = new Set(all.filter(p => p.status === 'pick' && p.jersey).map(p => p.jersey)); const T = tagsFor(group).tags; const hint = Object.keys(T).filter(k => need.has(T[k].jersey)); msg = '⚠️ Tap the right name' + (hint.length ? ` (or type ${hint.join(', ')})` : '') + '.'; }
   else if (sa === null || sb === null) msg = `${A}: ${pa.length} players · ${B}: ${pb.length} players. Enter the score.`;
   else {
     const w = winSide(sa, sb), hand = editing && editing.winner ? ' (set by hand)' : '';
@@ -404,19 +468,21 @@ $('#save').onclick = async () => {
   const pa = playersOf('A'), pb = playersOf('B');
   const sa = parseInt($('#sA').value), sb = parseInt($('#sB').value);
   if (!group) return toast('Pick the group first', true);
-  if (!pa.length || !pb.length) return toast('Type jersey numbers for both teams', true);
-  if (pa.some(x => pb.some(y => y.jersey === x.jersey && y.name === x.name))) return toast('Same kid on both teams', true);
-  if (pa.concat(pb).some(p => p.status === 'pick')) return toast('Tap the right name for the shared number', true);
+  if (!pa.length || !pb.length) return toast('Type jersey numbers or names for both teams', true);
+  const noname = pa.concat(pb).find(p => p.status === 'noname');
+  if (noname) return toast(`Nobody in Group ${group} is called "${noname.name}" — fix it or tap "as guest"`, true);
+  if (pa.concat(pb).some(p => p.status === 'pick')) return toast('Tap the right name', true);
+  if (pa.some(x => pb.some(y => sameKid(x, y)))) return toast('Same kid on both teams', true);
   if (isNaN(sa) || isNaN(sb)) return toast('Enter both scores', true);
   if (editing) return saveEdit(pa, pb, sa, sb);
-  const body = {action:'add', key:KEY, id: gameId || newGameId(), photos, date: todayStr(), group, teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa.map(p=>({jersey:p.jersey,name:p.name})), playersB:pb.map(p=>({jersey:p.jersey,name:p.name})), coach:$('#coach').value.trim()};
+  const body = {action:'add', key:KEY, id: gameId || newGameId(), photos, date: todayStr(), group, teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa.map(outPlayer), playersB:pb.map(outPlayer), coach:$('#coach').value.trim()};
   $('#save').disabled = true; $('#save').textContent = 'SAVING…';
   try {
     const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body)}).then(x => x.json()).catch(() => ({ok:true}));
     if (r && r.error === 'auth') { showGate('Wrong passphrase'); }
     else {
       toast(`Saved. Home ${sa} – Guests ${sb} · ${pa.length+pb.length} players scored`);
-      $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; picks = {A:{},B:{}}; photos = {home:'',guest:'',both:''}; gameId = ''; ['shotHome','shotGuest','shotBoth'].forEach(i => $('#'+i).innerHTML = '');
+      $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; guests = {A:{},B:{}}; photos = {home:'',guest:'',both:''}; gameId = ''; ['shotHome','shotGuest','shotBoth'].forEach(i => $('#'+i).innerHTML = '');
       $('#heard').innerHTML = 'Saved. Next game: tap Step 1.'; $('#step1').classList.remove('done'); $('#step2').classList.remove('done');
       preview();
       load(true); boards();
@@ -468,7 +534,7 @@ function needGroup() {
   const w = $('#groupChips'); w.scrollIntoView({behavior:'smooth', block:'center'}); w.classList.add('flash'); setTimeout(() => w.classList.remove('flash'), 2500);
   return true;
 }
-document.querySelectorAll('[data-mic]').forEach(b => b.onclick = () => { if (needGroup()) return; listen(b, 'LISTENING — say the jersey numbers', text => { const el = $('#'+b.dataset.mic); const n = numsVoice(wordsToNums(text)); if (n.length) { el.value = n.join(' '); preview(); } else toast('No numbers heard', true); }); });
+document.querySelectorAll('[data-mic]').forEach(b => b.onclick = () => { if (needGroup()) return; listen(b, 'LISTENING — say the jersey numbers', text => { const el = $('#'+b.dataset.mic); const n = numsVoice(wordsToNums(text), b.dataset.mic.slice(1)); if (n.length) { el.value = n.join(' '); preview(); } else toast('No numbers heard', true); }); });
 $('#step1').onclick = () => { if (needGroup()) return; listen($('#step1'), 'STEP 1 — say the score', text => parseScore(text)); };
 $('#step2').onclick = () => { if (needGroup()) return; listen($('#step2'), 'STEP 2 — say the players', text => parsePlayers(text)); };
 
@@ -520,10 +586,10 @@ function parsePlayers(raw) {
   while ((mm = re.exec(t))) { if (last) parts.push({team:last, txt:t.slice(idx, mm.index)}); last = mm[1]; idx = mm.index + mm[0].length; }
   if (last) parts.push({team:last, txt:t.slice(idx)});
   const home = [], guest = [];
-  parts.forEach(p => (p.team === 'home' ? home : guest).push(...numsVoice(p.txt)));
+  parts.forEach(p => (p.team === 'home' ? home : guest).push(...numsVoice(p.txt, p.team === 'home' ? 'A' : 'B')));
   if (!parts.length) { $('#heard').innerHTML += ' <span style="color:var(--red)">— say "White players … Blue players …".</span>'; return; }
-  if (home.length) $('#pA').value = [...new Set(home)].join(' ');
-  if (guest.length) $('#pB').value = [...new Set(guest)].join(' ');
+  if (home.length) $('#pA').value = home.join(' ');
+  if (guest.length) $('#pB').value = guest.join(' ');
   $('#step2').classList.add('done'); preview();
   toast(`Home: ${home.length} players · Guests: ${guest.length} players. Check names, then SAVE.`);
 }
@@ -565,7 +631,7 @@ $('#camIn').addEventListener('change', async () => {
     photos[slot] = r.url;
     let st = '';
     if (r.vision === 'ok' && r.numbers) {
-      const h = nums((r.numbers.home || []).join(' ')), g = nums((r.numbers.guest || []).join(' '));
+      const h = nums((r.numbers.home || []).join(' '), 'A'), g = nums((r.numbers.guest || []).join(' '), 'B');
       if (slot !== 'guest' && h.length) $('#pA').value = h.join(' ');
       if (slot !== 'home' && g.length) $('#pB').value = g.join(' ');
       $('#step2').classList.add('done'); preview();
@@ -591,16 +657,15 @@ function gameRow(g, from) {
       <div class="who">${from === 'season' ? esc(dateShort(g.date)) + ' · ' : ''}${esc(g.time)}${g.coach?' · '+esc(g.coach):''} · ${esc(g.teamA)}: ${g.playersA.map(p=>p.jersey).join(' ')} · ${esc(g.teamB)}: ${g.playersB.map(p=>p.jersey).join(' ')}</div>
     </div><div class="gbtns"><button class="undo edit" data-edit="${esc(g.id)}" data-from="${from}">Edit</button><button class="undo" data-del="${g.id}">Undo</button></div></div>`;
 }
-// a saved player -> what goes in the number box: the tag when the number is shared ("133J"), else the plain number
+// a saved player -> what goes in the box: the tag when the number is shared ("133J"), the number when it names one kid, the full name otherwise
 function prefill(list, t) {
-  const T = tagsFor(group);
   return list.map(p => {
-    const m = matches(p.jersey); if (m.length < 2) return p.jersey;
-    const hit = m.find(r => norm(r.name) === norm(p.name)); if (!hit) return p.jersey;
-    const tag = Object.keys(T.tags).find(k => T.tags[k] === hit); if (tag) return tag;
-    picks[t][p.jersey] = hit.name; return p.jersey;
+    const gn = guestNote(p.name);
+    if (gn) return tokenFor(addGuestQuiet(t, {jersey: /^\d+$/.test(p.jersey) ? p.jersey : '', name: gn[0], from: gn[1]}));
+    const hit = matches(p.jersey).find(r => norm(r.name) === norm(p.name)); return hit ? tokenFor(hit) : p.jersey;
   }).join(' ');
 }
+function addGuestQuiet(t, g) { return guests[t][norm(g.name)] = {jersey:g.jersey || '', name:g.name, from:g.from || '', guest:true}; }
 function formDirty() { return !editing && (['pA','pB','sA','sB'].some(i => $('#'+i).value.trim() !== '') || !!(photos.home || photos.guest || photos.both)); }
 function startEdit(id, from) {
   const g = DATA.games.find(x => x.id === id); if (!g) return toast('That game is gone. Refreshing.', true), load(true);
@@ -609,7 +674,7 @@ function startEdit(id, from) {
   const w = winOf(g);
   editing = {id:g.id, date:g.date, from: from || 'today', winner: w !== autoWin(g.scoreA, g.scoreB) ? w : null, names:{}, orig:{home:g.photos.home||'', guest:g.photos.guest||'', both:g.photos.both||''}};
   g.playersA.concat(g.playersB).forEach(p => { if (p.name) editing.names[p.jersey] = p.name; });
-  picks = {A:{}, B:{}}; group = g.group; renderGroupChips(); $('#hweek').textContent = 'Group ' + g.group + ' · Week ' + weekOf(g.date);
+  guests = {A:{}, B:{}}; group = g.group; renderGroupChips(); $('#hweek').textContent = 'Group ' + g.group + ' · Week ' + weekOf(g.date);
   $('#pA').value = prefill(g.playersA, 'A'); $('#pB').value = prefill(g.playersB, 'B');
   $('#sA').value = g.scoreA; $('#sB').value = g.scoreB;
   gameId = g.id; photos = Object.assign({}, editing.orig);
@@ -625,9 +690,9 @@ function startEdit(id, from) {
 }
 function exitEdit() {
   editing = null;
-  $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; picks = {A:{},B:{}}; photos = {home:'',guest:'',both:''}; gameId = ''; ['shotHome','shotGuest','shotBoth'].forEach(i => $('#'+i).innerHTML = '');
+  $('#pA').value = ''; $('#pB').value = ''; $('#sA').value=''; $('#sB').value=''; guests = {A:{},B:{}}; photos = {home:'',guest:'',both:''}; gameId = ''; ['shotHome','shotGuest','shotBoth'].forEach(i => $('#'+i).innerHTML = '');
   $('#editBar').hidden = true; $('#winCard').hidden = true; $('#failBox').hidden = true; $('#save').textContent = 'SAVE GAME'; $('#save').disabled = false;
-  $('#heard').innerHTML = 'Home = white jerseys. Guests = dark jerseys. You can also type below.';
+  $('#heard').innerHTML = 'Home = white jerseys. Guests = dark jerseys. You can also type numbers or names below.';
   if (prevGroup && DATA.groups.includes(prevGroup)) setGroup(prevGroup); else { renderGroupChips(); preview(); }
   prevGroup = '';
 }
@@ -662,7 +727,7 @@ function sameAsSaved(b) {
 // one call; on any doubt read the game back. A failed save leaves the old game untouched and the edit on screen.
 async function saveEdit(pa, pb, sa, sb) {
   const ed = editing;
-  const body = {action:'update', key:KEY, id:ed.id, group, teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa.map(p=>({jersey:p.jersey,name:p.name})), playersB:pb.map(p=>({jersey:p.jersey,name:p.name})), photos:{home:photos.home||'', guest:photos.guest||'', both:photos.both||''}};
+  const body = {action:'update', key:KEY, id:ed.id, group, teamA:team.A, scoreA:sa, teamB:team.B, scoreB:sb, playersA:pa.map(outPlayer), playersB:pb.map(outPlayer), photos:{home:photos.home||'', guest:photos.guest||'', both:photos.both||''}};
   if (ed.winner) body.winner = ed.winner;
   $('#save').disabled = true; $('#save').textContent = 'SAVING…'; $('#failBox').hidden = true;
   let r = null;
